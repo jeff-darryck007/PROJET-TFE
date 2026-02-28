@@ -5,29 +5,34 @@
     </div>
 
     <div class="nav-center">
-      <a href="#">Accueil</a>
-      <a href="#">Publier</a>
-      <a href="#">Messages</a>
-      <a href="#">Favoris</a>
+      <a href="/">Accueil</a>
+      <a href="/PublierView">Publier</a>
+      <a href="/MessageView">Messages</a>
+      <a href="/FavorisView">Favoris</a>
     </div>
 
     <div class="nav-right">
-      <a href="/" class="link-nav-icon">
+      <a href="/NotificationView" class="link-nav-icon">
         <i class="fas fa-bell nav-icon"></i>
       </a>
-      <a href="/" class="link-nav-icon">
+
+      <a href="/MessageView" class="link-nav-icon">
         <i class="fas fa-envelope nav-icon"></i>
       </a>
+
       <a href="/ProfileView" class="link-nav-icon">
         <i class="fas fa-user-circle nav-icon"></i>
       </a>
 
-      <i class="fas fa-bars nav-toggle" @click="menuOpen = !menuOpen"></i>
+      <i
+        class="fas fa-bars nav-toggle"
+        @click="menuOpen = !menuOpen"
+      ></i>
     </div>
 
     <div class="mobile-menu" :class="{ open: menuOpen }">
-      <a href="#">Accueil</a>
-      <a href="#">Publier</a>
+      <a href="">Accueil</a>
+      <a href="">Publier</a>
       <a href="#">Messages</a>
       <a href="#">Favoris</a>
       <a href="#">Profil</a>
@@ -66,6 +71,7 @@ export default {
   color: #333;
   text-decoration: none;
 }
+
 .main-navbar {
   background: white;
   padding: 12px 25px;

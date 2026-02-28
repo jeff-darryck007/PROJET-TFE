@@ -8,7 +8,12 @@ const form = ref({
   name: "",
   surname: "",
   email: "",
+  oldEmail: "",
+  newEmail: "",
   password: "",
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: "",
   roles: [] as string[],
   picture: null as File | null,
   credit: 0,
@@ -16,6 +21,7 @@ const form = ref({
 });
 
 const preview = ref<string | null>(null);
+const loading = ref(false);
 
 /* UPLOAD IMAGE */
 function handleFile(e: Event) {
@@ -29,17 +35,35 @@ function handleFile(e: Event) {
 /* SUBMIT */
 function submitForm() {
   console.log("Form data:", form.value);
+}
 
-  // Ici vous pourrez envoyer vers API Symfony
+/* CHANGER MOT DE PASSE */
+function changePassword() {
+  if (!form.value.oldPassword || !form.value.newPassword) {
+    alert("Veuillez remplir tous les champs");
+    return;
+  }
+
+  if (form.value.newPassword !== form.value.confirmPassword) {
+    alert("Les mots de passe ne correspondent pas");
+    return;
+  }
+
+  loading.value = true;
+
+  setTimeout(() => {
+    loading.value = false;
+    alert("Mot de passe modifié avec succès");
+  }, 1000);
 }
 
 /* AUTH */
 const isLoggedIn = ref(!!localStorage.getItem("token"));
-const roles = ref(localStorage.getItem("roles") || "null");
+const roles = ref(localStorage.getItem("roles") ?? "");
 
-function checkIsAdmin(roles: string) {
-  const rolesArray = roles.split(",");
-  return Array.isArray(rolesArray) && rolesArray.includes("admin");
+function checkIsAdmin(roleString: string) {
+  if (!roleString) return false;
+  return roleString.split(",").includes("admin");
 }
 
 const isAdmin = checkIsAdmin(roles.value);
@@ -125,7 +149,13 @@ function setMenu(menu: string) {
           <h3 class="sidebar-title">Autre</h3>
 
           <ul class="menu">
-            <li><i class="fas fa-question-circle"></i> Aide</li>
+            <li
+              :class="{ active: activeMenu === 'aide' }"
+              @click="setMenu('aide')"
+            >
+              <i class="fas fa-question-circle"></i>
+              Aide
+            </li>
 
             <li v-if="!isLoggedIn">
               <i class="fas fa-sign-in-alt"></i>
@@ -155,17 +185,15 @@ function setMenu(menu: string) {
       <!-- CONTENU PRINCIPAL -->
       <main class="listing">
         <div class="content-card">
+          <!-- DONATEURS -->
           <div v-if="activeMenu === 'donateurs'">
             <div class="form-container">
               <div class="card">
                 <div class="cover-container">
-                  <!-- IMAGE DE FOND -->
                   <img
                     src="/src/image/diegartenprofis-garden-professionals-7598976_1920.jpg"
                     class="cover-image"
                   />
-
-                  <!-- AVATAR -->
                   <div class="avatar-wrapper">
                     <img
                       src="https://devcodesms.com//component/assets/images/client/ifpsj.png"
@@ -178,20 +206,17 @@ function setMenu(menu: string) {
                 <div style="margin-top: 10px; height: 80px"></div>
 
                 <form @submit.prevent="submitForm">
-                  <!-- NOM -->
                   <div class="form-row">
                     <div class="input-group">
                       <label>Nom</label>
                       <input v-model="form.name" type="text" required />
                     </div>
-
                     <div class="input-group">
                       <label>Prénom</label>
                       <input v-model="form.surname" type="text" required />
                     </div>
                   </div>
 
-                  <!-- ROLES -->
                   <div class="input-group">
                     <label>Rôle</label>
                     <select v-model="form.roles" multiple>
@@ -201,32 +226,27 @@ function setMenu(menu: string) {
                     </select>
                   </div>
 
-                  <!-- PHOTO -->
                   <div class="input-group">
                     <label>Photo de profil</label>
                     <input type="file" @change="handleFile" />
-
                     <img v-if="preview" :src="preview" class="preview" />
                   </div>
 
-                  <!-- BUTTON -->
                   <button class="btn-submit">Modifier les Informations</button>
                 </form>
               </div>
             </div>
           </div>
 
+          <!-- DEMANDEURS -->
           <div v-if="activeMenu === 'demandeurs'">
             <div class="form-container">
               <div class="card">
                 <div class="cover-container">
-                  <!-- IMAGE DE FOND -->
                   <img
                     src="/src/image/diegartenprofis-garden-professionals-7598976_1920.jpg"
                     class="cover-image"
                   />
-
-                  <!-- AVATAR -->
                   <div class="avatar-wrapper">
                     <img
                       src="https://devcodesms.com//component/assets/images/client/ifpsj.png"
@@ -239,7 +259,6 @@ function setMenu(menu: string) {
                 <div style="margin-top: 10px; height: 80px"></div>
 
                 <form @submit.prevent="submitForm">
-                  <!-- NOM -->
                   <div class="input-group">
                     <label>Mon ancien adresse e-mail</label>
                     <input v-model="form.email" type="email" required />
@@ -259,7 +278,6 @@ function setMenu(menu: string) {
                     <input v-model="form.email" type="email" required />
                   </div>
 
-                  <!-- BUTTON -->
                   <button class="btn-submit">
                     Modifier mon adresse e-mail
                   </button>
@@ -268,16 +286,116 @@ function setMenu(menu: string) {
             </div>
           </div>
 
+          <!-- BUREAU (CHANGER MOT DE PASSE) -->
           <div v-if="activeMenu === 'bureau'">
-            <h2>Catégorie Bureau</h2>
-            <p>Objets de bureau disponibles.</p>
+            <h2>Changer mot de passe</h2>
+
+            <div class="input-group">
+              <label>Ancien mot de passe</label>
+              <input type="password" v-model="form.oldPassword" />
+            </div>
+
+            <div class="input-group">
+              <label>Nouveau mot de passe</label>
+              <input type="password" v-model="form.newPassword" />
+            </div>
+
+            <div class="input-group">
+              <label>Confirmer mot de passe</label>
+              <input type="password" v-model="form.confirmPassword" />
+            </div>
+
+            <button class="btn-submit" @click="changePassword" :disabled="loading">
+              {{ loading ? "Modification..." : "Modifier le mot de passe" }}
+            </button>
           </div>
 
+          <!-- INFORMATION DU COMPTE -->
           <div v-if="activeMenu === 'electronique'">
-            <h2>Catégorie Électronique</h2>
-            <p>Appareils électroniques disponibles.</p>
+            <div class="form-container">
+              <div class="card">
+                <h2>Informations du compte</h2>
+
+                <div class="account-info">
+                  <div class="info-row">
+                    <span class="info-label">Nom complet :</span>
+                    <span class="info-value">{{ form.name }} {{ form.surname }}</span>
+                  </div>
+
+                  <div class="info-row">
+                    <span class="info-label">Adresse email :</span>
+                    <span class="info-value">{{ form.email || form.newEmail }}</span>
+                  </div>
+
+                  <div class="info-row">
+                    <span class="info-label">Rôle(s) :</span>
+                    <span class="info-value">
+                      <span v-for="role in form.roles" :key="role" class="role-badge">
+                        {{ role }}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div class="info-row">
+                    <span class="info-label">Crédit :</span>
+                    <span class="info-value credit">{{ form.credit }} €</span>
+                  </div>
+
+                  <div class="info-row">
+                    <span class="info-label">Compte créé le :</span>
+                    <span class="info-value">{{ form.createAt }}</span>
+                  </div>
+                </div>
+
+                <button class="btn-submit" @click="submitForm">
+                  Mettre à jour les informations
+                </button>
+              </div>
+            </div>
           </div>
 
+          <!-- AIDE -->
+          <div v-if="activeMenu === 'aide'">
+            <div class="form-container">
+              <div class="card">
+                <h2>Centre d'aide</h2>
+                <div class="help-section">
+                  <div class="help-item">
+                    <h4>Comment modifier mon profil ?</h4>
+                    <p>
+                      Allez dans "Modifier mon profil", changez vos informations puis cliquez sur 
+                      "Modifier les Informations".
+                    </p>
+                  </div>
+
+                  <div class="help-item">
+                    <h4>Comment changer mon mot de passe ?</h4>
+                    <p>
+                      Dans la section "Sécurité", cliquez sur "Changer le mot de passe",
+                      remplissez les champs et confirmez.
+                    </p>
+                  </div>
+
+                  <div class="help-item">
+                    <h4>Comment modifier mon adresse e-mail ?</h4>
+                    <p>
+                      Utilisez "Modifier mon contact", entrez votre ancien email,
+                      puis confirmez avec le code reçu.
+                    </p>
+                  </div>
+
+                  <div class="help-item">
+                    <h4>Besoin d'assistance ?</h4>
+                    <p>
+                      Contactez notre support à support@monsite.com
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MEUBLES -->
           <div v-if="activeMenu === 'meubles'">
             <h2>Catégorie Meubles</h2>
             <p>Meubles disponibles.</p>
@@ -289,6 +407,117 @@ function setMenu(menu: string) {
 </template>
 
 <style>
+
+/* ========================= */
+/* INFORMATIONS DU COMPTE */
+/* ========================= */
+
+.account-info {
+  margin: 20px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #555;
+}
+
+.info-value {
+  color: #222;
+}
+
+.role-badge {
+  background: #0054a6;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  margin-right: 5px;
+}
+
+.credit {
+  font-weight: bold;
+  color: #0a7d2c;
+}
+
+/* ========================= */
+/* AIDE */
+/* ========================= */
+
+.help-section {
+  margin-top: 20px;
+}
+
+.help-item {
+  background: #f9fbff;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  border-left: 4px solid #0054a6;
+  transition: 0.3s;
+}
+
+.help-item:hover {
+  background: #eef4ff;
+}
+
+.help-item h4 {
+  margin: 0 0 8px 0;
+  color: #0054a6;
+  font-size: 15px;
+}
+
+.help-item p {
+  margin: 0;
+  font-size: 14px;
+  color: #444;
+}
+
+
+.account-info {
+  margin: 20px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #555;
+}
+
+.info-value {
+  color: #222;
+}
+
+.role-badge {
+  background: #0054a6;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  margin-right: 5px;
+}
+
+.credit {
+  font-weight: bold;
+  color: #0a7d2c;
+}
+
+
+
 .cover-container {
   position: relative;
   width: 100%;

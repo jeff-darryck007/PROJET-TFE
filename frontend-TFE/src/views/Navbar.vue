@@ -9,6 +9,7 @@
       <a href="/PublierView">Publier</a>
       <a href="/MessageView">Messages</a>
       <a href="/FavorisView">Favoris</a>
+      <a href="/ContactView">Contact</a>
     </div>
 
     <div class="nav-right">

@@ -2,25 +2,36 @@
   <div class="login-container">
     <div class="login-box">
 
-      <div class="avatar animate-pop">
+      <!-- Avatar -->
+      <div class="avatar">
         <img
           src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
           alt="User avatar"
         />
       </div>
 
-      <h2 class="site-title fade-in">Partage Gratuit</h2>
-      <p class="welcome-msg fade-in-delay">
-        Donnez, et trouvez des objets gratuits près de chez vous 
+      <!-- Titre -->
+      <h1 class="site-title">Partage Gratuit</h1>
+      <p class="welcome-msg">
+        Donnez, et trouvez des objets gratuits près de chez vous
       </p>
 
-      <form @submit.prevent="handleLogin" class="fade-in-delay2">
-        <div class="input-group">
+      <!-- Formulaire -->
+      <form @submit.prevent="handleLogin">
+
+        <!-- Email -->
+        <div class="input-group" :class="{ error: errorMessage }">
           <i class="fas fa-user"></i>
-          <input type="email" v-model="email" placeholder="Email" required />
+          <input
+            type="email"
+            v-model="email"
+            placeholder="Email"
+            required
+          />
         </div>
 
-        <div class="input-group password-group">
+        <!-- Password -->
+        <div class="input-group password-group" :class="{ error: errorMessage }">
           <i class="fas fa-lock"></i>
 
           <input
@@ -35,221 +46,267 @@
           </span>
         </div>
 
+        <!-- Message erreur -->
+        <div v-if="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
+        <!-- Options -->
         <div class="options">
           <label class="remember">
             <input type="checkbox" v-model="rememberMe" />
             Se souvenir de moi
           </label>
-          <a class="forgot" @click="goForgot">Mot de passe oublié ?</a>
+
+          <a class="forgot" @click="goForgot">
+            Mot de passe oublié ?
+          </a>
         </div>
 
-        <button type="submit" class="login-btn">
-          Se connecter
+        <!-- Bouton -->
+        <button
+          type="submit"
+          class="login-btn"
+          :disabled="loading"
+        >
+          {{ loading ? "Connexion..." : "Se connecter" }}
         </button>
 
+        <!-- Inscription -->
         <p class="register-msg">
           Pas encore inscrit ?
           <a @click="goToRegister">Créer un compte</a>
         </p>
+
       </form>
     </div>
   </div>
-
-  <Footer />
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { loginUser } from "../controller/controllerLogin.js"
-import Footer from "./Footer.vue"
-
-const showPassword = ref(false)
-
-const togglePassword = () => {
-  showPassword.value = !showPassword.value
-}
 
 const router = useRouter()
 
 const email = ref("")
 const password = ref("")
 const rememberMe = ref(false)
+const showPassword = ref(false)
+const loading = ref(false)
+const errorMessage = ref("")
+
+const togglePassword = () => {
+  showPassword.value = !showPassword.value
+}
 
 const goToRegister = () => router.push("/register")
 const goForgot = () => router.push("/forgot-password")
 
+// Supprime le message d'erreur quand on modifie les champs
+watch([email, password], () => {
+  errorMessage.value = ""
+})
+
 const handleLogin = async () => {
   try {
+    loading.value = true
+    errorMessage.value = ""
+
     const data = await loginUser(email.value, password.value)
-    // stocker le token dans le localStorage et rediriger vers le dashboard
+
     localStorage.setItem("token", data.token)
     localStorage.setItem("idUser", data.id)
     localStorage.setItem("roles", data.roles)
-    router.push("/") 
+
+    router.push("/")
   } catch (error) {
-    console.error(error.message)
+    errorMessage.value =
+      "Adresse email ou mot de passe incorrect."
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
-
 <style scoped>
-  .password-group {
-    position: relative;
-  }
 
-  .toggle-password {
-    cursor: pointer;
-    font-size: 18px;
-    color: #444;
-    margin-left: 10px;
-    transition: 0.2s;
-  }
-
-  .toggle-password:hover {
-    color: #f1b800;
-  }
-
-
-/* Fix overflow horizontal */
-:global(html, body) {
-  overflow-x: hidden !important;
-  width: 100%;
-}
-
-/* --- Fond principal --- */
+/* ===== Background ===== */
 .login-container {
-  min-height: calc(100vh - 120px);
+  min-height: 100vh;
+  background: #e9e9e9;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #ffffff;
   padding: 20px;
-  box-sizing: border-box;
 }
 
-/* --- Bloc login (AGRANDI) --- */
+/* ===== Carte ===== */
 .login-box {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(12px);
-  border-radius: 25px;
-
+  background: #f3f3f3;
+  border-radius: 30px;
   width: 100%;
-  max-width: 650px;     /* Largeur augmentée */
-  padding: 50px;        /* Padding plus grand */
-
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  max-width: 650px;
+  padding: 60px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   text-align: center;
-  color: #000;
-  box-sizing: border-box;
 }
 
-/* --- Avatar (agrandi) --- */
+/* ===== Avatar ===== */
 .avatar img {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  margin-bottom: 30px;
-  border: 2px solid #000;
-  object-fit: cover;
+  border: 2px solid #222;
+  margin-bottom: 20px;
 }
 
-/* --- Titres --- */
+/* ===== Titre ===== */
 .site-title {
-  font-size: 2.6em;
-  margin-bottom: 15px;
-  font-weight: 700;
+  font-size: 42px;
+  color: #0a4a8a;
+  font-family: Georgia, serif;
+  margin-bottom: 10px;
 }
 
 .welcome-msg {
-  font-size: 18px;
-  margin-bottom: 35px;
+  font-size: 16px;
+  margin-bottom: 40px;
+  color: #333;
 }
 
-/* --- Champs --- */
+/* ===== Champs ===== */
 .input-group {
-  border: 1px solid #000;
+  position: relative;
+  border: 2px solid #222;
+  border-radius: 15px;
+  padding: 18px;
+  margin-bottom: 20px;
+  background: #fff;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 12px;
-  margin: 16px 0;
-  padding: 18px;
+  transition: 0.3s;
 }
 
 .input-group i {
-  margin-right: 14px;
-  font-size: 20px;
   color: #f1b800;
-}
-
-.input-group input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
+  margin-right: 12px;
   font-size: 18px;
 }
 
-/* --- Options --- */
+.input-group input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 16px;
+  background: transparent;
+}
+
+/* Erreur champ */
+.input-group.error {
+  border-color: #c40000;
+  background: #fff5f5;
+}
+
+/* ===== Password ===== */
+.password-group {
+  position: relative;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 18px;
+  cursor: pointer;
+  color: #f1b800;
+}
+
+/* ===== Message erreur ===== */
+.error-message {
+  background: #ffe5e5;
+  color: #c40000;
+  border: 1px solid #ffb3b3;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ===== Options ===== */
 .options {
   display: flex;
   justify-content: space-between;
-  font-size: 15px;
+  align-items: center;
   margin-bottom: 30px;
+  font-size: 14px;
 }
 
 .remember {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .forgot {
-  color: #002a66;
+  color: #0a4a8a;
   font-weight: 600;
   cursor: pointer;
 }
 
-/* --- Bouton connexion (agrandi) --- */
+.forgot:hover {
+  text-decoration: underline;
+}
+
+/* ===== Bouton ===== */
 .login-btn {
   width: 100%;
   padding: 18px;
-  border-radius: 12px;
   background: #f1b800;
+  border: none;
+  border-radius: 15px;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
+  transition: 0.3s ease;
+  box-shadow: 0 4px 0 #c89b00;
 }
 
-/* --- Inscription --- */
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(241, 184, 0, 0.4);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ===== Register ===== */
 .register-msg {
   margin-top: 30px;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .register-msg a {
   color: #f1b800;
+  font-weight: bold;
   cursor: pointer;
-  font-weight: 700;
 }
 
-/* --- Responsive --- */
-@media (max-width: 480px) {
+.register-msg a:hover {
+  text-decoration: underline;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
   .login-box {
     padding: 35px;
-    width: 92%;
   }
+
   .site-title {
-    font-size: 2em;
-  }
-  .input-group input {
-    font-size: 16px;
-  }
-  .login-btn {
-    font-size: 16px;
-    padding: 14px;
+    font-size: 30px;
   }
 }
+
 </style>

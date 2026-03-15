@@ -12,6 +12,7 @@ import Home from "@/views/Home.vue";
 import PublierView from "@/views/user/PublierView.vue";
 import MessageView from "@/views/user/MessageView.vue";
 import NotificationView from "@/views/user/NotificationView.vue";
+import ContactView from "@/views/user/ContactView.vue";
 
 
 const routes = [
@@ -19,6 +20,11 @@ const routes = [
     path: "/",
     name: "dashboard",
     component: DashboardView,
+  },
+  {
+    path: "/ContactView",
+    name: "contactView",
+    component: ContactView,
   },
   {
     path: "/NotificationView",

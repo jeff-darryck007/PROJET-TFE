@@ -1,32 +1,38 @@
 <template>
   <div class="register-container">
     <div class="register-box">
-      <div class="avatar animate-pop">
-        <img v-if="previewImage" :src="previewImage" alt="Photo de profil" />
-        <img v-else src="https://cdn-icons-png.flaticon.com/512/847/847969.png" alt="Avatar par défaut" />
+
+      <div class="avatar">
+        <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" />
       </div>
 
-      <h2 class="site-title fade-in">Créer un compte</h2>
-      <p class="welcome-msg fade-in-delay">
-        Rejoignez la communauté de <strong>Partage Gratuit</strong> 
+      <h2 class="site-title">Créer un compte</h2>
+      <p class="welcome-msg">
+        Rejoignez la communauté de <strong>Partage Gratuit</strong>
       </p>
 
-      <form @submit.prevent="handleRegister" class="fade-in-delay2">
+      <form @submit.prevent="handleRegister">
+
+        <!-- Nom -->
         <div class="input-group">
           <i class="fas fa-user"></i>
           <input type="text" v-model="name" placeholder="Nom" required />
         </div>
 
+        <!-- Prénom -->
         <div class="input-group">
           <i class="fas fa-user-tag"></i>
           <input type="text" v-model="surname" placeholder="Prénom" required />
         </div>
 
-        <div class="input-group">
+        <!-- Email -->
+        <div class="input-group" :class="{ error: emailError }">
           <i class="fas fa-envelope"></i>
           <input type="email" v-model="email" placeholder="Email" required />
         </div>
+        <p v-if="emailError" class="error-msg">{{ emailError }}</p>
 
+        <!-- Rôle -->
         <div class="input-group">
           <i class="fas fa-user-cog"></i>
           <select v-model="role" required>
@@ -36,63 +42,59 @@
           </select>
         </div>
 
-        <div class="input-group password-group">
+        <!-- Mot de passe -->
+        <div class="input-group" :class="{ error: passwordError }">
           <i class="fas fa-lock"></i>
-
           <input
             :type="showPassword ? 'text' : 'password'"
             v-model="password"
             placeholder="Mot de passe"
             required
           />
-
           <span class="toggle-password" @click="showPassword = !showPassword">
             <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
           </span>
         </div>
+        <p v-if="passwordError" class="error-msg">{{ passwordError }}</p>
 
-        <div class="input-group password-group">
+        <!-- Confirmation -->
+        <div class="input-group" :class="{ error: confirmError }">
           <i class="fas fa-lock"></i>
-
           <input
             :type="showConfirm ? 'text' : 'password'"
             v-model="confirmerPassword"
             placeholder="Confirmer le mot de passe"
             required
           />
-
-          <span class="toggle-password" @click="showConfirm = !showConfirm">
-            <i :class="showConfirm ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-          </span>
         </div>
+        <p v-if="confirmError" class="error-msg">{{ confirmError }}</p>
 
+        <!-- Bouton -->
         <button type="submit" class="register-btn" :disabled="loading">
-          <span v-if="!loading">S'inscrire</span>
-          <span v-else class="loader"></span>
+          {{ loading ? "Création..." : "S'inscrire" }}
         </button>
 
-        <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
-        <p v-if="successMessage" class="success-msg">{{ successMessage }}</p>
+        <p v-if="successMessage" class="success-msg">
+          {{ successMessage }}
+        </p>
 
         <p class="login-msg">
-          Déjà un compte ? <a href="#" @click="goToLogin">Se connecter</a>
+          Déjà un compte ?
+          <a @click="goToLogin">Se connecter</a>
         </p>
+
       </form>
     </div>
   </div>
-  <Footer />
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import Navbar from "./Navbar.vue"
-import Footer from "./Footer.vue"
 import { registerUser } from "../controller/controllerLogin.js"
 
 const router = useRouter()
 
-// Champs du formulaire
 const name = ref("")
 const surname = ref("")
 const email = ref("")
@@ -100,24 +102,48 @@ const role = ref("")
 const password = ref("")
 const confirmerPassword = ref("")
 
-// UI
 const loading = ref(false)
-const errorMessage = ref("")
+
+const emailError = ref("")
+const passwordError = ref("")
+const confirmError = ref("")
 const successMessage = ref("")
+
 const showPassword = ref(false)
 const showConfirm = ref(false)
-const previewImage = ref(null)
 
-// Navigation
 const goToLogin = () => router.push("/login")
 
-// Soumission
+// Nettoyage auto erreurs
+watch([email, password, confirmerPassword], () => {
+  emailError.value = ""
+  passwordError.value = ""
+  confirmError.value = ""
+})
+
+// Validation mot de passe
+const isPasswordValid = (pwd) => {
+  const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/
+  return regex.test(pwd)
+}
+
 const handleRegister = async () => {
-  errorMessage.value = ""
+
+  emailError.value = ""
+  passwordError.value = ""
+  confirmError.value = ""
   successMessage.value = ""
 
+  // Vérification mot de passe
+  if (!isPasswordValid(password.value)) {
+    passwordError.value =
+      "Le mot de passe doit contenir au moins 8 caractères avec lettres et chiffres."
+    return
+  }
+
+  // Vérification confirmation
   if (password.value !== confirmerPassword.value) {
-    errorMessage.value = "Les mots de passe ne correspondent pas"
+    confirmError.value = "Les mots de passe ne correspondent pas."
     return
   }
 
@@ -135,185 +161,117 @@ const handleRegister = async () => {
     successMessage.value = "Compte créé avec succès 🎉"
 
     setTimeout(() => {
-      router.push("/")
+      router.push("/login")
     }, 1500)
 
   } catch (error) {
-    errorMessage.value = error.message
+
+    // Si ton backend renvoie 409 ou message email existant
+    if (error.response?.status === 409) {
+      emailError.value = "Cette adresse email existe déjà."
+    } else {
+      emailError.value = error.message
+    }
+
   } finally {
     loading.value = false
   }
 }
 </script>
 
-
 <style scoped>
-  .password-group {
-  position: relative;
-}
 
-.toggle-password {
-  cursor: pointer;
-  font-size: 18px;
-  color: #444;
-  margin-left: 10px;
-  transition: 0.2s;
-}
-
-.toggle-password:hover {
-  color: #f1b800;
-}
-
-/* --- Fond principal --- */
+/* Layout */
 .register-container {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #ffffff;
-  padding: 20px;
-  box-sizing: border-box;
+  background: #f4f4f4;
 }
 
-/* --- Bloc d'inscription --- */
 .register-box {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(12px);
+  background: white;
+  padding: 50px;
   border-radius: 20px;
-  padding: 60px;
   width: 100%;
-  max-width: 650px; /* plus large que la version initiale */
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.15);
   text-align: center;
-  color: #000;
-  transition: all 0.3s ease;
 }
 
-/* --- Avatar --- */
+/* Avatar */
 .avatar img {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  margin-bottom: 30px;
-  border: 2px solid #000;
-  object-fit: cover;
-  transition: all 0.3s ease;
-}
-
-/* --- Titre --- */
-.site-title {
-  font-size: 2.8em;
+  width: 100px;
   margin-bottom: 20px;
-  font-weight: 700;
-}
-.welcome-msg {
-  font-size: 18px;
-  margin-bottom: 35px;
 }
 
-/* --- Champs de saisie --- */
+/* Champs */
 .input-group {
-  border: 1px solid #000;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  padding: 15px;
+  margin: 15px 0;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  margin: 18px 0;
-  padding: 16px;
-  transition: all 0.3s ease;
+  background: #fff;
 }
 
-.input-group i {
-  margin-right: 12px;
-  color: #F1B800;
-  font-size: 18px;
+.input-group.error {
+  border-color: red;
+  background: #fff5f5;
 }
 
 .input-group input,
 .input-group select {
   flex: 1;
   border: none;
-  background: transparent;
   outline: none;
-  color: #000;
-  font-size: 18px;
+  font-size: 16px;
+  background: transparent;
 }
 
-/* --- Bouton d'inscription --- */
+.input-group i {
+  margin-right: 10px;
+  color: #F1B800;
+}
+
+/* Erreurs */
+.error-msg {
+  color: red;
+  font-size: 14px;
+  text-align: left;
+  margin-top: -8px;
+}
+
+/* Succès */
+.success-msg {
+  color: green;
+  margin-top: 15px;
+}
+
+/* Bouton */
 .register-btn {
   width: 100%;
-  padding: 16px;
+  padding: 15px;
+  background: #F1B800;
   border: none;
   border-radius: 12px;
-  background: #F1B800;
-  color: #000;
-  cursor: pointer;
   font-weight: bold;
-  font-size: 18px;
-  transition: 0.2s ease;
+  cursor: pointer;
+  margin-top: 15px;
 }
+
 .register-btn:hover {
-  background: #e0a700;
+  background: #dca600;
 }
 
-/* --- Lien connexion --- */
 .login-msg {
-  margin-top: 30px;
-  font-size: 16px;
-}
-.login-msg a {
-  color: #F1B800;
-  font-weight: 700;
+  margin-top: 20px;
 }
 
-/* --- Animations --- */
-.fade-in {
-  animation: fadeIn 1s ease forwards;
-}
-.fade-in-delay {
-  animation: fadeIn 1.3s ease forwards;
-}
-.fade-in-delay2 {
-  animation: fadeIn 1.6s ease forwards;
+.toggle-password {
+  cursor: pointer;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pop {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.animate-pop { animation: pop 0.8s ease; }
-
-/* --- RESPONSIVE --- */
-@media (max-width: 1024px) {
-  .register-box { padding: 50px; }
-  .avatar img { width: 100px; height: 100px; }
-  .site-title { font-size: 2.4em; }
-  .welcome-msg { font-size: 16px; }
-  .input-group input, .input-group select { font-size: 16px; }
-  .register-btn { font-size: 16px; padding: 14px; }
-}
-
-@media (max-width: 768px) {
-  .register-box { padding: 40px; }
-  .avatar img { width: 90px; height: 90px; }
-  .site-title { font-size: 2em; }
-  .welcome-msg { font-size: 15px; }
-  .input-group input, .input-group select { font-size: 15px; }
-  .register-btn { font-size: 15px; padding: 12px; }
-}
-
-@media (max-width: 480px) {
-  .register-box { padding: 30px; width: 90%; }
-  .avatar img { width: 80px; height: 80px; }
-  .site-title { font-size: 1.8em; }
-  .welcome-msg { font-size: 14px; }
-  .input-group input, .input-group select { font-size: 14px; }
-  .register-btn { font-size: 14px; padding: 10px; }
-}
 </style>
-

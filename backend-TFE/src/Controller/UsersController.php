@@ -7,12 +7,12 @@ use Symfony\Component\HttpFoundation\JsonResponse; // formater les reponses en j
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface; // hascher le mot de passe
 use Symfony\Component\HttpFoundation\Request; // corps de la requete
-use Doctrine\ORM\EntityManagerInterface; // manipuler la base de donnees
-use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\EntityManagerInterface;
 
 
-use App\Entity\Users; // Entité utilisateur
-use App\Repository\UsersRepository; // repository de l'utilisateur
+use App\Entity\Users;
+use App\Repository\UsersRepository;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 #[Route('/api', name: 'api_')]
 final class UsersController extends AbstractController
@@ -32,7 +32,7 @@ final class UsersController extends AbstractController
 
     // RECUPERER UN UTILISATEUR PAR TOKEN  
     #[Route('/me', name: 'api_me', methods: ['GET'])] 
-    public function me(#[CurrentUser] ?User $user): JsonResponse 
+    public function me(#[CurrentUser] ?Users $user): JsonResponse
     {
         if (!$user) {
             return $this->json([
@@ -51,41 +51,75 @@ final class UsersController extends AbstractController
         ]);
     }
 
-    #[Route('/register', name: 'register', methods: 'post')]
-    public function register(ManagerRegistry $doctrine, Request $request, UserPasswordHasherInterface $passwordHasher): JsonResponse
-    {
-        $em = $doctrine->getManager();
-        //-- recuperation des valeurs envoyées depuis postman ou le front end web
-        $decoded = json_decode($request->getContent());
-        $email = $decoded->email;
-        $plaintextPassword = $decoded->password;
-        $name = $decoded->name;
-        $surname = $decoded->surname;
-        $role = $decoded->role;
-    
+    #[Route('/register', name: 'register', methods: ['POST'])]
+    public function register(
+        Request $request,
+        UserPasswordHasherInterface $passwordHasher,
+        UsersRepository $usersRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data) {
+            return $this->json(['error' => 'Corps de requête invalide'], 400);
+        }
+
+        // Vérification des champs requis
+        foreach (['email', 'password', 'name', 'surname', 'role'] as $field) {
+            if (empty($data[$field])) {
+                return $this->json(['error' => "Le champ '$field' est requis"], 400);
+            }
+        }
+
+        // Sanitize
+        $email   = strtolower(trim($data['email']));
+        $name    = trim(strip_tags($data['name']));
+        $surname = trim(strip_tags($data['surname']));
+        $role    = $data['role'];
+        $password = $data['password'];
+
+        // Validation email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['error' => 'Adresse email invalide'], 422);
+        }
+
+        // Email déjà utilisé
+        if ($usersRepository->findOneBy(['email' => $email])) {
+            return $this->json(['error' => 'Cette adresse email est déjà utilisée'], 409);
+        }
+
+        // Validation nom / prénom
+        if (strlen($name) < 2 || strlen($surname) < 2) {
+            return $this->json(['error' => 'Le nom et le prénom doivent contenir au moins 2 caractères'], 422);
+        }
+
+        // Validation mot de passe
+        if (strlen($password) < 8) {
+            return $this->json(['error' => 'Le mot de passe doit contenir au moins 8 caractères'], 422);
+        }
+        if (!preg_match('/[A-Za-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+            return $this->json(['error' => 'Le mot de passe doit contenir au moins une lettre et un chiffre'], 422);
+        }
+
+        // Rôle autorisé
+        if (!in_array($role, ['donateur', 'visiteur'], true)) {
+            return $this->json(['error' => 'Rôle invalide'], 422);
+        }
+
         $user = new Users();
-        // hasher le mot de passe
-        $hashedPassword = $passwordHasher->hashPassword(
-            $user,
-            $plaintextPassword
-        );
-        
-        // charger les information dans l'entite
-        $user->setPassword($hashedPassword);
+        $user->setPassword($passwordHasher->hashPassword($user, $password));
         $user->setEmail($email);
         $user->setName($name);
         $user->setSurname($surname);
         $user->setRoles([$role]);
-        $user->setPicture(" ");
-        $user->setCreateAt(new \DateTime());
+        $user->setPicture(null);
         $user->setCredit(0);
         $user->setStatus(1);
 
-        // inserer en base de donnee
         $em->persist($user);
         $em->flush();
-    
-        return $this->json(['message' => 'Registered Successfully']);
+
+        return $this->json(['message' => 'Compte créé avec succès'], 201);
     }
 
 
@@ -96,19 +130,21 @@ final class UsersController extends AbstractController
         // Récupération de tous les utilisateurs
         $users = $userRepository->findAll();
 
-        // Transformation en tableau (pour JSON)
         $data = [];
         foreach ($users as $user) {
-            $data["data"][] = [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                // ajoute d’autres champs si nécessaires
+            $data[] = [
+                ‘id’ => $user->getId(),
+                ‘email’ => $user->getEmail(),
+                ‘name’ => $user->getName(),
+                ‘surname’ => $user->getSurname(),
+                ‘roles’ => $user->getRoles(),
+                ‘status’ => $user->getStatus(),
+                ‘credit’ => $user->getCredit(),
             ];
         }
 
-        // Réponse JSON
         return $this->json([
-            "success" => false,
+            "success" => true,
             "data" => $data
         ]);
     }
@@ -151,7 +187,7 @@ final class UsersController extends AbstractController
         }
 
         if (isset($data['role'])) {
-            $user->setRole($data['role']);
+            $user->setRoles([$data['role']]);
         }
 
         if (isset($data['picture'])) {
@@ -166,11 +202,9 @@ final class UsersController extends AbstractController
             $user->setStatus($data['status']);
         }
 
-        // Si un mot de passe est envoyé, on le hashe avant de le sauvegarder
         if (isset($data['password']) && !empty($data['password'])) {
-            //$hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
-            //$user->setPassword($hashedPassword);
-            $user->setPassword($data['password']); // comme dans ta méthode create()
+            $hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
+            $user->setPassword($hashedPassword);
         }
 
         // Mettre à jour la date de modification si tu as ce champ
@@ -190,7 +224,7 @@ final class UsersController extends AbstractController
                 'email' => $user->getEmail(),
                 'name' => $user->getName(),
                 'surname' => $user->getSurname(),
-                'role' => $user->getRole(),
+                'roles' => $user->getRoles(),
                 'status' => $user->getStatus(),
                 'credit' => $user->getCredit(),
             ]

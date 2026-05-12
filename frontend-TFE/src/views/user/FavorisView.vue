@@ -79,7 +79,7 @@ function removeFavorite(id: number) {
   </div>
 </template>
 
-<style>
+<style scoped>
 .page-container {
   background: #f4f6f9;
   min-height: 100vh;

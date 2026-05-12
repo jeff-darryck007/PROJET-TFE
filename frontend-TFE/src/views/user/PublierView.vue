@@ -89,14 +89,6 @@ function submitArticle() {
             </select>
           </div>
 
-          <!-- STATUS (toujours disponible à la création) -->
-          <div class="input-group">
-            <label>Status</label>
-            <select v-model="article.status" disabled>
-              <option>Disponible</option>
-            </select>
-          </div>
-
           <!-- DESCRIPTION -->
           <div class="input-group">
             <label>Description *</label>
@@ -164,8 +156,7 @@ function submitArticle() {
   </div>
 </template>
 
-<style>
-/* même style que précédemment */
+<style scoped>
 .page-container {
   background: #f4f6f9;
   min-height: 100vh;

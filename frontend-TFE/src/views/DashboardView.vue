@@ -2,117 +2,141 @@
 import Navbar from './Navbar.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-// Vérifier si le token existe dans localStorage
+const router = useRouter();
 const isLoggedIn = ref(!!localStorage.getItem('token'));
-const roles = ref(localStorage.getItem('roles') || 'null');
+const roles = ref(localStorage.getItem('roles') || '');
 
-console.log("Roles from localStorage:", roles.value);
-
-function checkIsAdmin(roles) {
-  const rolesArray = roles.split(",");
-  return Array.isArray(rolesArray) && rolesArray.includes('admin')
+function checkIsAdmin(roleString: string) {
+  return roleString.split(',').includes('admin');
 }
 
 const isAdmin = checkIsAdmin(roles.value);
 
-console.log("Roles from localStorage:", isAdmin);
-
-
-// Fonction de déconnexion
 function logout() {
   localStorage.removeItem('token');
+  localStorage.removeItem('idUser');
+  localStorage.removeItem('roles');
   isLoggedIn.value = false;
+  router.push('/login');
 }
 </script>
 
 <template>
-  <div class="page-container">
+  <div class="page">
+    <Navbar />
 
-    <Navbar /> 
+    <div class="main-layout">
 
-    <div class="spacer"></div>
-
-    <div class="content">
-
+      <!-- SIDEBAR -->
       <aside class="sidebar">
-        <h3 class="sidebar-title">Utilisateurs (102)</h3>
-        <ul>
-          <li><i class="fas fa-arrow-right"></i> Donnateurs (35)</li>
-          <li><i class="fas fa-arrow-right"></i> Demandeurs (12)</li>
-        </ul>
 
-        <h3 class="sidebar-title sidebar-section">Catégories (25)</h3>
-        <ul>
-          <li>Bureau</li>
-          <li>Appareil électroniques</li>
-          <li>Meubles</li>
-          <li><a href="http://">Toutes les catégories ...</a></li>
-        </ul>
-        
-        <h3 class="sidebar-title sidebar-section">Autre</h3>
-        <ul>
-          <li>
-            <i class="fas fa-question-circle"></i> Aide
-          </li>
-          <li v-if="!isLoggedIn">
-            <i class="fas fa-sign-in-alt"></i> <a href="/login">Connexion</a>
-          </li>
-          <li v-if="!isLoggedIn">
-            <i class="fas fa-user-plus"></i> <a href="/register">Ouvrir un compte</a>
-          </li>
-          <li v-else>
-            <i class="fas fa-sign-out-alt"></i> <a href="" @click.prevent="logout">Déconnexion</a>
-          </li>
-        </ul>
+        <div class="sidebar-section">
+          <p class="section-label">Communauté</p>
+          <div class="stat-item">
+            <span class="stat-icon"><i class="fas fa-users"></i></span>
+            <span class="stat-text">Utilisateurs</span>
+            <span class="stat-badge">102</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon"><i class="fas fa-hand-holding-heart"></i></span>
+            <span class="stat-text">Donnateurs</span>
+            <span class="stat-badge">35</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon"><i class="fas fa-search"></i></span>
+            <span class="stat-text">Demandeurs</span>
+            <span class="stat-badge">12</span>
+          </div>
+        </div>
 
-        <!-- ADMIN -->
-        <div v-if="isLoggedIn && isAdmin">
-          <h3 class="sidebar-title sidebar-section">Administration</h3>
-          <ul>
-            <li><i class="fas fa-users"></i> Gestion des utilisateurs</li>
-            <li><i class="fas fa-comments"></i> Gestion des commentaires</li>
-            <li><i class="fas fa-bullhorn"></i> Gestion des annonces</li>
-            <li><i class="fas fa-chart-line"></i> Statistiques globales</li>
-            <li><i class="fas fa-credit-card"></i> Gestion des plans d’abonnement</li>
+        <div class="sidebar-section">
+          <p class="section-label">Catégories</p>
+          <ul class="cat-list">
+            <li class="cat-item"><i class="fas fa-chair"></i> Bureau</li>
+            <li class="cat-item"><i class="fas fa-laptop"></i> Électronique</li>
+            <li class="cat-item"><i class="fas fa-couch"></i> Meubles</li>
+            <li class="cat-item see-all"><i class="fas fa-th-list"></i> Toutes les catégories</li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <p class="section-label">Compte</p>
+          <ul class="action-list">
+            <li v-if="!isLoggedIn" class="action-item">
+              <a href="/login"><i class="fas fa-sign-in-alt"></i> Connexion</a>
+            </li>
+            <li v-if="!isLoggedIn" class="action-item">
+              <a href="/register"><i class="fas fa-user-plus"></i> S'inscrire</a>
+            </li>
+            <li v-if="isLoggedIn" class="action-item action-item--logout" @click="logout">
+              <i class="fas fa-sign-out-alt"></i> Déconnexion
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="isLoggedIn && isAdmin" class="sidebar-section sidebar-section--admin">
+          <p class="section-label">Administration</p>
+          <ul class="action-list">
+            <li class="action-item"><i class="fas fa-users-cog"></i> Utilisateurs</li>
+            <li class="action-item"><i class="fas fa-comments"></i> Commentaires</li>
+            <li class="action-item"><i class="fas fa-bullhorn"></i> Annonces</li>
+            <li class="action-item"><i class="fas fa-chart-line"></i> Statistiques</li>
+            <li class="action-item"><i class="fas fa-credit-card"></i> Abonnements</li>
           </ul>
         </div>
 
       </aside>
 
-      <!-- LISTING -->
+      <!-- CONTENU -->
       <main class="listing">
 
-        <!-- BARRE DE RECHERCHE -->
-        <header class="header-search">
-          <div class="search-row">
-            <input type="text" placeholder="Toutes les catégories..." />
+        <!-- RECHERCHE -->
+        <div class="search-block">
+          <div class="search-main">
+            <i class="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              placeholder="Rechercher un article, une catégorie..."
+              class="search-input"
+            />
           </div>
-
-          <div class="search-row2">
-            <input type="text" placeholder="Code postal" />
+          <div class="search-secondary">
+            <input type="text" placeholder="Code postal" class="postal-input" />
             <select class="distance-select">
-              <option selected>Toutes les distances</option>
-              <option>< 3 km</option>
-              <option>< 5 km</option>
-              <option>< 10 km</option>
-              <option>< 20 km</option>
-              <option>< 30 km</option>
-              <option>< 40 km</option>
-              <option>< 50 km</option>
+              <option>Toutes les distances</option>
+              <option>&lt; 3 km</option>
+              <option>&lt; 5 km</option>
+              <option>&lt; 10 km</option>
+              <option>&lt; 20 km</option>
+              <option>&lt; 30 km</option>
+              <option>&lt; 50 km</option>
             </select>
-            <button>Rechercher</button>
+            <button class="search-btn">
+              <i class="fas fa-search"></i> Rechercher
+            </button>
           </div>
-        </header>
+        </div>
 
         <h2 class="section-title">Pour vous</h2>
 
         <div class="grid">
           <div class="card" v-for="n in 12" :key="n">
-            <img src="../image/0ddc5b14a02b31812e9a41ea30dad92c.jpg" />
-            <p class="card-title">Bureau de réunion</p>
-            <p class="card-price">À donner</p>
-            <button class="voir-plus-btn">Voir plus</button>
+            <div class="card-img-wrap">
+              <img src="../image/0ddc5b14a02b31812e9a41ea30dad92c.jpg" alt="Article" />
+              <button class="fav-btn" title="Ajouter aux favoris">
+                <i class="fas fa-heart"></i>
+              </button>
+            </div>
+            <div class="card-body">
+              <p class="card-title">Bureau de réunion</p>
+              <p class="card-location">
+                <i class="fas fa-map-marker-alt"></i> Paris, 75015
+              </p>
+              <span class="card-badge">À donner</span>
+              <button class="card-btn">Voir l'article</button>
+            </div>
           </div>
         </div>
 
@@ -121,179 +145,381 @@ function logout() {
   </div>
 </template>
 
-<style>
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-li {
-  margin: 10px 0;
-  font-size: 17px;
-}
-
-a {
-  text-decoration: none;
-  color: #007bff; /* Couleur par défaut des liens */
-}
-
-i {
-  margin-right: 8px; /* Espacement entre l'icône et le texte */
-  font-size: 20px;
-}
-
-.page-container {
-  background: #f3f3f3;
+<style scoped>
+/* === LAYOUT === */
+.page {
+  background: #f4f6f9;
   min-height: 100vh;
-  padding: 20px;
   font-family: Arial, sans-serif;
 }
 
-.spacer {
-  height: 40px;
-}
-
-/* LAYOUT */
-.content {
+.main-layout {
   display: flex;
-  gap: 20px;
+  gap: 24px;
+  padding: 28px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-/* SIDEBAR */
+/* === SIDEBAR === */
 .sidebar {
-  width: 250px;
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,.1);
-}
-
-.sidebar-title {
-  font-weight: bold;
-  font-size: 20px;
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .sidebar-section {
-  margin-top: 25px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.sidebar ul {
-  list-style: none;
-  padding: 0;
+.sidebar-section--admin {
+  border: 1px solid #e3eefc;
+  background: #f8fbff;
 }
 
-.sidebar li {
-  padding: 6px 0;
-  color: #555;
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #999;
+  margin: 0 0 12px 0;
 }
 
-/* SEARCH */
-.header-search {
-  max-width: 900px;
-  margin-bottom: 25px;
-}
-
-.search-row input,
-.search-row2 input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #bbb;
-  border-radius: 6px;
-}
-
-.search-row2 {
+.stat-item {
   display: flex;
+  align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 14px;
+  color: #444;
 }
 
-.search-row2 button {
-  background: #0054a6;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 6px;
+.stat-item:last-child {
+  border-bottom: none;
 }
 
-/* LISTING */
-.listing {
+.stat-icon {
+  color: #0054a6;
+  width: 20px;
+  text-align: center;
+}
+
+.stat-text {
   flex: 1;
 }
 
-.section-title {
-  font-size: 22px;
-  font-weight: bold;
-  margin-bottom: 15px;
+.stat-badge {
+  background: #eef4ff;
+  color: #0054a6;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
 }
 
-/* GRID */
+.cat-list,
+.action-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cat-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-item:hover {
+  background: #f1f5f9;
+  color: #0054a6;
+}
+
+.cat-item.see-all {
+  color: #0054a6;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.action-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+
+.action-item a {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.action-item:hover {
+  background: #f1f5f9;
+  color: #0054a6;
+}
+
+.action-item--logout:hover {
+  color: #e53e3e;
+  background: #fff5f5;
+}
+
+/* === LISTING === */
+.listing {
+  flex: 1;
+  min-width: 0;
+}
+
+/* === RECHERCHE === */
+.search-block {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.search-main {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #aaa;
+  font-size: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 13px 16px 13px 44px;
+  border: 2px solid #e8ecf0;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.search-input:focus {
+  border-color: #0054a6;
+}
+
+.search-secondary {
+  display: flex;
+  gap: 10px;
+}
+
+.postal-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #e8ecf0;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.postal-input:focus {
+  border-color: #0054a6;
+}
+
+.distance-select {
+  padding: 10px 14px;
+  border: 2px solid #e8ecf0;
+  border-radius: 10px;
+  font-size: 14px;
+  background: white;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.distance-select:focus {
+  border-color: #0054a6;
+}
+
+.search-btn {
+  background: #0054a6;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-btn:hover {
+  background: #003f7d;
+}
+
+/* === TITRE SECTION === */
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #222;
+  margin: 0 0 18px 0;
+}
+
+/* === GRID === */
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 18px;
 }
 
-/* CARD */
+/* === CARD === */
 .card {
   background: white;
-  border-radius: 10px;
-  padding: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.card img {
-  width: 100%;
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+.card-img-wrap {
+  position: relative;
   height: 160px;
+  overflow: hidden;
+}
+
+.card-img-wrap img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  transition: transform 0.35s;
+}
+
+.card:hover .card-img-wrap img {
+  transform: scale(1.05);
+}
+
+.fav-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ccc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: color 0.2s, transform 0.2s;
+}
+
+.fav-btn:hover {
+  color: #e53e3e;
+  transform: scale(1.1);
+}
+
+.card-body {
+  padding: 12px 14px 14px;
 }
 
 .card-title {
-  margin-top: 8px;
   font-weight: 600;
+  font-size: 15px;
+  color: #222;
+  margin: 0 0 4px 0;
 }
 
-.card-price {
-  color: #F1B800;
-  font-weight: bold;
+.card-location {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.voir-plus-btn {
-  background: transparent;
-  padding: 10px 24px;
-  border-radius: 10px;
+.card-badge {
+  display: inline-block;
+  background: #e8f4e8;
+  color: #0a7d2c;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+
+.card-btn {
+  width: 100%;
+  background: #f1b800;
   border: none;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(241,184,0,.6);
-  margin-top: 8px;
+  transition: background 0.2s, transform 0.1s;
+  color: #222;
+  font-family: inherit;
 }
 
-/* RESPONSIVE */
+.card-btn:hover {
+  background: #dca600;
+  transform: translateY(-1px);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 900px) {
-  .content {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .main-layout { flex-direction: column; }
+  .sidebar { width: 100%; }
 }
 
 @media (max-width: 600px) {
-  .search-row2 {
-    flex-direction: column;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .page-container {
-    padding: 10px;
-  }
+  .main-layout { padding: 16px; gap: 16px; }
+  .search-secondary { flex-direction: column; }
+  .grid { grid-template-columns: 1fr; }
 }
 </style>

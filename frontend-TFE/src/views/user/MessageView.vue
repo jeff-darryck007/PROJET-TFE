@@ -196,6 +196,9 @@ function selectConversation(id: number) {
   flex: 1;
   overflow-y: auto;
   margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .message {

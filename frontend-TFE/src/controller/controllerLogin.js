@@ -16,13 +16,13 @@ export async function registerUser(email, password, name, surname, role) {
       role
     });
 
-    return response.data; // renvoie la réponse au composant Vue
+    return response.data;
   } catch (error) {
-    if (error.response && error.response.status === 409) {
-      throw new Error("Email déjà utilisé");
-    } else {
-      throw new Error("Erreur serveur ou réseau");
+    if (error.response) {
+      const msg = error.response.data?.error;
+      throw new Error(msg || "Erreur serveur");
     }
+    throw new Error("Impossible de joindre le serveur");
   }
 }
 
@@ -38,10 +38,11 @@ export async function loginUser(email, password) {
       password,
     });
 
-    // Tu peux ici gérer le stockage du token si tu veux :
-    // localStorage.setItem("token", response.data.token);
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+    }
 
-    return response.data; // renvoie la réponse au composant Vue
+    return response.data;
   } catch (error) {
     if (error.response && error.response.status === 401) {
       throw new Error("Identifiants invalides");
@@ -51,16 +52,16 @@ export async function loginUser(email, password) {
   }
 }
 
-// fonction pour recuperer les informaqtions de l'utilisateur connecté
+// fonction pour recuperer les informations de l'utilisateur connecté
 export async function fetchUserProfile(token) {
   try {
-    const response = await axios.get(`${BASE_URL}/api/get_user/${token}`, {
+    const response = await axios.get(`${BASE_URL}/api/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
-    return response.data; // renvoie les données de l'utilisateur
+    return response.data;
   } catch (error) {
     throw new Error("Erreur lors de la récupération du profil utilisateur");
   }

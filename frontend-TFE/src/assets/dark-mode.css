@@ -1,0 +1,381 @@
+/* ============================================================
+   DARK MODE GLOBAL  —  activé par html.dark-mode
+   ============================================================ */
+
+/* === BASE === */
+html.dark-mode,
+html.dark-mode body {
+  background: #121212;
+  color: #e0e0e0;
+}
+
+/* === NAVBAR === */
+html.dark-mode .main-navbar {
+  background: #1e1e1e;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode .nav-center a {
+  color: #ccc;
+}
+
+html.dark-mode .link-nav-icon,
+html.dark-mode .nav-toggle,
+html.dark-mode .dark-toggle {
+  color: #ccc;
+}
+
+html.dark-mode .mobile-menu {
+  background: #1e1e1e;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+html.dark-mode .mobile-menu a {
+  color: #ccc;
+  border-color: #2e2e2e;
+}
+
+html.dark-mode .mobile-menu a:hover,
+html.dark-mode .mobile-menu a.router-link-active {
+  background: #2a2a2a;
+  color: #f1b800;
+}
+
+/* === DASHBOARD === */
+html.dark-mode .page {
+  background: #121212;
+}
+
+html.dark-mode .sidebar-section {
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .sidebar-section--admin {
+  background: #1a2233;
+  border-color: #2a3a55;
+}
+
+html.dark-mode .section-label {
+  color: #777;
+}
+
+html.dark-mode .stat-item {
+  color: #ccc;
+  border-color: #2a2a2a;
+}
+
+html.dark-mode .stat-badge {
+  background: #1a2a44;
+  color: #6ab0ff;
+}
+
+html.dark-mode .cat-item {
+  color: #bbb;
+}
+
+html.dark-mode .cat-item:hover {
+  background: #252525;
+  color: #6ab0ff;
+}
+
+html.dark-mode .action-item {
+  color: #bbb;
+}
+
+html.dark-mode .action-item a {
+  color: inherit;
+}
+
+html.dark-mode .action-item:hover {
+  background: #252525;
+  color: #6ab0ff;
+}
+
+html.dark-mode .action-item--logout:hover {
+  background: #2a1515;
+  color: #f87171;
+}
+
+html.dark-mode .search-block {
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .search-input,
+html.dark-mode .postal-input {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+html.dark-mode .search-input::placeholder,
+html.dark-mode .postal-input::placeholder {
+  color: #666;
+}
+
+html.dark-mode .search-input:focus,
+html.dark-mode .postal-input:focus {
+  border-color: #4a90d9;
+}
+
+html.dark-mode .distance-select {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+html.dark-mode .section-title {
+  color: #e0e0e0;
+}
+
+html.dark-mode .card {
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .card-title {
+  color: #e0e0e0;
+}
+
+html.dark-mode .card-location {
+  color: #888;
+}
+
+html.dark-mode .fav-btn {
+  background: #2a2a2a;
+  color: #666;
+}
+
+/* === LOGIN PAGE === */
+html.dark-mode .login-page,
+html.dark-mode .register-page {
+  background: #121212;
+}
+
+html.dark-mode .right-panel {
+  background: #181818;
+}
+
+/* Sur mobile, form-card devient transparent : on force le fond sombre */
+@media (max-width: 900px) {
+  html.dark-mode .form-card {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html.dark-mode .right-panel {
+    background: #121212;
+  }
+}
+
+html.dark-mode .form-card {
+  background: #1e1e1e;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+html.dark-mode .form-card h2 {
+  color: #e0e0e0;
+}
+
+html.dark-mode .form-subtitle {
+  color: #888;
+}
+
+html.dark-mode .input-group label,
+html.dark-mode .label-row label {
+  color: #bbb;
+}
+
+/* Champ avec icône — le conteneur fournit le fond */
+html.dark-mode .field {
+  background: #252525;
+  border-color: #333;
+}
+
+html.dark-mode .field input {
+  color: #e0e0e0;
+  background: transparent !important; /* transparent pour laisser .field imposer la couleur */
+}
+
+html.dark-mode .field input::placeholder {
+  color: #555;
+}
+
+html.dark-mode .field:focus-within {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+html.dark-mode .field.error {
+  border-color: #dc2626;
+  background: #2a1515;
+}
+
+html.dark-mode .forgot {
+  color: #6ab0ff;
+}
+
+html.dark-mode .divider {
+  color: #444;
+}
+
+html.dark-mode .divider::before,
+html.dark-mode .divider::after {
+  background: #333;
+}
+
+html.dark-mode .visit-btn {
+  background: transparent;
+  border-color: #333;
+  color: #bbb;
+}
+
+html.dark-mode .visit-btn:hover {
+  border-color: #4a90d9;
+  color: #4a90d9;
+  background: #1a2a44;
+}
+
+html.dark-mode .remember {
+  color: #aaa;
+}
+
+html.dark-mode .mobile-register,
+html.dark-mode .mobile-login {
+  color: #888;
+}
+
+/* === REGISTER — ROLE CARD === */
+html.dark-mode .role-card {
+  background: #252525;
+  border-color: #333;
+}
+
+html.dark-mode .role-card strong {
+  color: #ccc;
+}
+
+html.dark-mode .role-card span {
+  color: #777;
+}
+
+html.dark-mode .role-card:hover {
+  border-color: #4a90d9;
+}
+
+html.dark-mode .role-card.selected {
+  border-color: #4a90d9;
+  background: #1a2a44;
+}
+
+html.dark-mode .role-card.selected strong {
+  color: #6ab0ff;
+}
+
+/* === FORGOT / RESET — panneau gauche (étapes) === */
+html.dark-mode .forgot-page,
+html.dark-mode .reset-page {
+  background: #121212;
+}
+
+html.dark-mode .info-block h2 {
+  color: #e0e0e0;
+}
+
+html.dark-mode .info-block p {
+  color: #aaa;
+}
+
+html.dark-mode .step-text strong {
+  color: #e0e0e0;
+}
+
+html.dark-mode .step-text span {
+  color: #888;
+}
+
+html.dark-mode .step-num {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+html.dark-mode .step-connector {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+html.dark-mode .back-hint a {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+html.dark-mode .form-icon {
+  color: #f1b800;
+}
+
+/* === NOT FOUND === */
+html.dark-mode .notfound-page {
+  background: #121212;
+}
+
+html.dark-mode .notfound-card {
+  background: #1e1e1e;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+html.dark-mode .notfound-card h1 {
+  color: #e0e0e0;
+}
+
+html.dark-mode .description {
+  color: #aaa;
+}
+
+html.dark-mode .help-text {
+  color: #888;
+}
+
+html.dark-mode .btn-secondary {
+  background: #252525;
+  border-color: #333;
+  color: #ccc;
+}
+
+html.dark-mode .btn-secondary:hover {
+  background: #2e2e2e;
+  color: #e0e0e0;
+}
+
+/* === PAGE CONTAINER (ProfileView, FavorisView, MessageView, PublierView) === */
+html.dark-mode .page-container {
+  background: #121212;
+}
+
+html.dark-mode .form-wrapper {
+  background: #1e1e1e;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* === INPUTS GÉNÉRIQUES (hors .field — gérés séparément) === */
+html.dark-mode textarea,
+html.dark-mode select {
+  background: #252525;
+  color: #e0e0e0;
+  border-color: #333;
+}
+
+html.dark-mode textarea::placeholder {
+  color: #555;
+}
+
+/* Inputs standalone (pas dans un .field) */
+html.dark-mode input:not([type="checkbox"]):not([type="radio"]) {
+  color: #e0e0e0;
+}
+
+/* === TITRES ET TEXTE === */
+html.dark-mode h1,
+html.dark-mode h2,
+html.dark-mode h3,
+html.dark-mode h4 {
+  color: #e0e0e0;
+}

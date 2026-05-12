@@ -1,5 +1,6 @@
 <template>
   <div class="login-page">
+    <DarkToggle />
 
     <!-- PANNEAU GAUCHE : branding -->
     <div class="left-panel">
@@ -135,6 +136,7 @@
 import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { loginUser } from "../controller/controllerLogin.js"
+import DarkToggle from "../components/DarkToggle.vue"
 
 const router = useRouter()
 

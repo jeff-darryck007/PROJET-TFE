@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Navbar from "../Navbar.vue"
+import Footer from "../Footer.vue"
 import "@fortawesome/fontawesome-free/css/all.css"
 import { ref, onMounted } from "vue"
 
@@ -24,13 +25,19 @@ const errorMessage = ref("")
 const successMessage = ref("")
 const captchaToken = ref("")
 
+onMounted(() => {
+  window.onCaptchaSuccess = (token: string) => {
+    captchaToken.value = token
+  }
+})
+
 /* VALIDATION EMAIL */
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 
-/* SUBMIT */
+/* SUBMIT */   
 async function submitContact() {
   errorMessage.value = ""
   successMessage.value = ""
@@ -135,10 +142,12 @@ async function submitContact() {
         </form>
       </div>
     </div>
+
+    <Footer />
   </div>
 </template>
 
-<style>
+<style scoped>
 .page-container {
   background: #f4f6f9;
   min-height: 100vh;
@@ -160,7 +169,7 @@ async function submitContact() {
   max-width: 600px;
 }
 
-h2 {
+.card h2 {
   margin-bottom: 25px;
   color: #0054a6;
   display: flex;
@@ -174,21 +183,24 @@ h2 {
   margin-bottom: 18px;
 }
 
-label {
+.input-group label {
   font-weight: 600;
   margin-bottom: 6px;
+  color: #444;
 }
 
-input,
-textarea {
+.input-group input,
+.input-group textarea {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #ccc;
   font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-input:focus,
-textarea:focus {
+.input-group input:focus,
+.input-group textarea:focus {
   border-color: #0054a6;
   outline: none;
   box-shadow: 0 0 0 2px rgba(0,84,166,0.15);
@@ -207,6 +219,8 @@ textarea:focus {
   font-weight: bold;
   border-radius: 10px;
   cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
 }
 
 .btn-submit:hover {
@@ -215,15 +229,18 @@ textarea:focus {
 
 .btn-submit:disabled {
   background: #999;
+  cursor: not-allowed;
 }
 
 .error-msg {
-  color: red;
+  color: #dc2626;
   margin-bottom: 15px;
+  font-size: 14px;
 }
 
 .success-msg {
-  color: green;
+  color: #16a34a;
   margin-bottom: 15px;
+  font-size: 14px;
 }
 </style>

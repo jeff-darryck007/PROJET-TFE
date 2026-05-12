@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Navbar from './Navbar.vue'
+import Footer from './Footer.vue'
 import '@fortawesome/fontawesome-free/css/all.css';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -142,6 +143,8 @@ function logout() {
 
       </main>
     </div>
+
+    <Footer />
   </div>
 </template>
 

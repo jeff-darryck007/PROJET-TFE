@@ -34,10 +34,13 @@
     </div>
 
   </div>
+
+  <Footer />
 </template>
 
 <script setup>
 import { useRouter } from "vue-router"
+import Footer from "./Footer.vue"
 
 const router = useRouter()
 

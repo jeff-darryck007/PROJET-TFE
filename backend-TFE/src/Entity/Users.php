@@ -45,6 +45,12 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private ?int $status = 1; // 0 = désactivé, 1 = actif, 2 = supprimé, 3 = en vérification
 
+    #[ORM\Column(length: 6, nullable: true)]
+    private ?string $resetCode = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $resetCodeExpiresAt = null;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserDonation::class)]
     private Collection $listUserDonation;
 
@@ -233,5 +239,27 @@ class Users implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         // Si tu stockes des données sensibles temporaires, efface-les ici
+    }
+
+    public function getResetCode(): ?string
+    {
+        return $this->resetCode;
+    }
+
+    public function setResetCode(?string $resetCode): static
+    {
+        $this->resetCode = $resetCode;
+        return $this;
+    }
+
+    public function getResetCodeExpiresAt(): ?\DateTimeInterface
+    {
+        return $this->resetCodeExpiresAt;
+    }
+
+    public function setResetCodeExpiresAt(?\DateTimeInterface $resetCodeExpiresAt): static
+    {
+        $this->resetCodeExpiresAt = $resetCodeExpiresAt;
+        return $this;
     }
 }

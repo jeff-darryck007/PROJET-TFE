@@ -9,7 +9,37 @@ html.dark-mode body {
   color: #e0e0e0;
 }
 
-/* === NAVBAR === */
+/* === TITRES ET TEXTE GÉNÉRIQUES === */
+html.dark-mode h1,
+html.dark-mode h2,
+html.dark-mode h3,
+html.dark-mode h4 {
+  color: #e0e0e0;
+}
+
+/* === INPUTS / TEXTAREA / SELECT GÉNÉRIQUES === */
+/* .field input a background: transparent !important, donc il n'est pas affecté */
+html.dark-mode input:not([type="checkbox"]):not([type="radio"]) {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+html.dark-mode input::placeholder,
+html.dark-mode textarea::placeholder {
+  color: #555;
+}
+
+html.dark-mode textarea,
+html.dark-mode select {
+  background: #252525;
+  color: #e0e0e0;
+  border-color: #333;
+}
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
 html.dark-mode .main-navbar {
   background: #1e1e1e;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
@@ -41,7 +71,9 @@ html.dark-mode .mobile-menu a.router-link-active {
   color: #f1b800;
 }
 
-/* === DASHBOARD === */
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
 html.dark-mode .page {
   background: #121212;
 }
@@ -147,7 +179,14 @@ html.dark-mode .fav-btn {
   color: #666;
 }
 
-/* === LOGIN PAGE === */
+/* h2 dans les cards (Dashboard, Favoris, Contact, Publier) */
+html.dark-mode .card h2 {
+  color: #6ab0ff;
+}
+
+/* ============================================================
+   LOGIN / REGISTER
+   ============================================================ */
 html.dark-mode .login-page,
 html.dark-mode .register-page {
   background: #121212;
@@ -155,18 +194,6 @@ html.dark-mode .register-page {
 
 html.dark-mode .right-panel {
   background: #181818;
-}
-
-/* Sur mobile, form-card devient transparent : on force le fond sombre */
-@media (max-width: 900px) {
-  html.dark-mode .form-card {
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  html.dark-mode .right-panel {
-    background: #121212;
-  }
 }
 
 html.dark-mode .form-card {
@@ -187,7 +214,7 @@ html.dark-mode .label-row label {
   color: #bbb;
 }
 
-/* Champ avec icône — le conteneur fournit le fond */
+/* Champ avec icône : le conteneur impose le fond, l'input est transparent */
 html.dark-mode .field {
   background: #252525;
   border-color: #333;
@@ -195,7 +222,7 @@ html.dark-mode .field {
 
 html.dark-mode .field input {
   color: #e0e0e0;
-  background: transparent !important; /* transparent pour laisser .field imposer la couleur */
+  background: transparent !important;
 }
 
 html.dark-mode .field input::placeholder {
@@ -246,7 +273,18 @@ html.dark-mode .mobile-login {
   color: #888;
 }
 
-/* === REGISTER — ROLE CARD === */
+/* Mobile : form-card transparent */
+@media (max-width: 900px) {
+  html.dark-mode .form-card {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  html.dark-mode .right-panel {
+    background: #121212;
+  }
+}
+
+/* === REGISTER — role cards === */
 html.dark-mode .role-card {
   background: #252525;
   border-color: #333;
@@ -273,46 +311,316 @@ html.dark-mode .role-card.selected strong {
   color: #6ab0ff;
 }
 
-/* === FORGOT / RESET — panneau gauche (étapes) === */
+/* ============================================================
+   MESSAGES D'ERREUR / SUCCÈS GLOBAUX
+   ============================================================ */
+html.dark-mode .msg-error {
+  background: #2a1515;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
+html.dark-mode .msg-error-box {
+  background: #2a1515;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
+html.dark-mode .msg-success {
+  background: #1a2d1a;
+  color: #6ee7b7;
+  border-color: #166534;
+}
+
+/* ============================================================
+   FORGOT PASSWORD / RESET
+   ============================================================ */
 html.dark-mode .forgot-page,
 html.dark-mode .reset-page {
   background: #121212;
 }
 
-html.dark-mode .info-block h2 {
-  color: #e0e0e0;
+/* Icône principale */
+html.dark-mode .form-icon {
+  background: #1a2a44;
 }
 
-html.dark-mode .info-block p {
+html.dark-mode .form-icon i {
+  color: #6ab0ff;
+}
+
+html.dark-mode .success-icon {
+  background: #1a2d1a;
+}
+
+/* Email affiché après envoi */
+html.dark-mode .email-display {
+  background: #1a2a44;
+  color: #6ab0ff;
+}
+
+/* Note info */
+html.dark-mode .note {
+  background: #252525;
   color: #aaa;
 }
 
-html.dark-mode .step-text strong {
+html.dark-mode .note i {
+  color: #6ab0ff;
+}
+
+/* Bouton retry */
+html.dark-mode .retry-btn {
+  border-color: #333;
+  color: #aaa;
+  background: transparent;
+}
+
+html.dark-mode .retry-btn:hover {
+  border-color: #4a90d9;
+  color: #6ab0ff;
+}
+
+/* Bouton submit (jaune — déjà lisible sur fond sombre, on garde) */
+html.dark-mode .submit-btn {
+  box-shadow: 0 4px 0 #a07800;
+}
+
+/* Lien mobile retour */
+html.dark-mode .mobile-back a {
+  color: #6ab0ff;
+}
+
+/* Indicateur de force (Reset / ForgotPassword) */
+html.dark-mode .strength-track {
+  background: #333;
+}
+
+/* Compte à rebours (ForgotPassword étape 2) */
+html.dark-mode .countdown {
+  background: #1e1e1e;
+  border-color: #333;
+  color: #bbb;
+}
+
+html.dark-mode .countdown i {
+  color: #6ab0ff;
+}
+
+html.dark-mode .countdown.expired {
+  background: #2a1515;
+  border-color: #7f1d1d;
+  color: #f87171;
+}
+
+html.dark-mode .countdown.expired i {
+  color: #f87171;
+}
+
+/* ============================================================
+   PROFILE VIEW
+   ============================================================ */
+html.dark-mode .menu-item {
+  color: #bbb;
+}
+
+html.dark-mode .menu-item i {
+  color: #6ab0ff;
+}
+
+html.dark-mode .menu-item:hover {
+  background: #252525;
+  color: #6ab0ff;
+}
+
+html.dark-mode .menu-item--logout:hover {
+  background: #2a1515;
+  color: #f87171;
+}
+
+html.dark-mode .content-card {
+  background: #1e1e1e;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .form-section h2 {
+  color: #6ab0ff;
+}
+
+html.dark-mode .profile-header {
+  background: #2a2a2a;
+}
+
+html.dark-mode .avatar {
+  border-color: #1e1e1e;
+}
+
+/* Bouton secondaire jaune (envoyer code) — préservé */
+html.dark-mode .form-section .btn-secondary {
+  border-color: #f1b800;
+  color: #f1b800;
+  background: transparent;
+}
+
+html.dark-mode .form-section .btn-secondary:hover {
+  background: #f1b800;
+  color: #222;
+}
+
+/* Infos du compte */
+html.dark-mode .info-row {
+  border-color: #2a2a2a;
+}
+
+html.dark-mode .info-label {
+  color: #aaa;
+}
+
+html.dark-mode .info-value {
   color: #e0e0e0;
 }
 
-html.dark-mode .step-text span {
-  color: #888;
+html.dark-mode .role-badge {
+  background: #1a2a44;
+  color: #6ab0ff;
 }
 
-html.dark-mode .step-num {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ccc;
+/* Aide */
+html.dark-mode .help-item {
+  background: #252525;
+  border-left-color: #4a90d9;
 }
 
-html.dark-mode .step-connector {
-  background: rgba(255, 255, 255, 0.15);
+html.dark-mode .help-item:hover {
+  background: #2a2a2a;
 }
 
-html.dark-mode .back-hint a {
-  color: rgba(255, 255, 255, 0.6);
+html.dark-mode .help-item h4 {
+  color: #6ab0ff;
 }
 
-html.dark-mode .form-icon {
-  color: #f1b800;
+html.dark-mode .help-item p {
+  color: #bbb;
 }
 
-/* === NOT FOUND === */
+/* ============================================================
+   FAVORIS VIEW
+   ============================================================ */
+html.dark-mode .favorite-card {
+  background: #252525;
+  border-left-color: #4a90d9;
+}
+
+html.dark-mode .favorite-info h3 {
+  color: #e0e0e0;
+}
+
+html.dark-mode .favorite-info .category,
+html.dark-mode .favorite-info .description,
+html.dark-mode .favorite-info .city,
+html.dark-mode .favorite-info .date {
+  color: #aaa;
+}
+
+html.dark-mode .empty-msg {
+  color: #666;
+}
+
+/* ============================================================
+   MESSAGE VIEW
+   ============================================================ */
+html.dark-mode .content-messages {
+  padding: 20px;
+}
+
+html.dark-mode .sidebar-messages {
+  background: #1e1e1e;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .sidebar-messages h3 {
+  color: #6ab0ff;
+}
+
+html.dark-mode .conversation-list li {
+  color: #bbb;
+}
+
+html.dark-mode .conversation-list li:hover {
+  background: #252525;
+  color: #e0e0e0;
+}
+
+html.dark-mode .messages-area {
+  background: #1e1e1e;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+html.dark-mode .messages-area.empty {
+  color: #666;
+}
+
+html.dark-mode .conversation-header h3 {
+  color: #6ab0ff;
+}
+
+html.dark-mode .send-message input {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+/* ============================================================
+   PUBLIER VIEW
+   ============================================================ */
+html.dark-mode .address-section {
+  background: #252525;
+  border-left-color: #4a90d9;
+}
+
+html.dark-mode .address-section h3 {
+  color: #6ab0ff;
+}
+
+html.dark-mode .preview {
+  border-color: #333;
+}
+
+/* ============================================================
+   CONTACT VIEW
+   ============================================================ */
+html.dark-mode .input-group input,
+html.dark-mode .input-group textarea {
+  background: #252525;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+html.dark-mode .input-group input:focus,
+html.dark-mode .input-group textarea:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+}
+
+/* ============================================================
+   BOUTONS SUBMIT (bleu — Contact, Profile, Publier)
+   ============================================================ */
+html.dark-mode .btn-submit {
+  background: #1a5fa8;
+}
+
+html.dark-mode .btn-submit:hover {
+  background: #1470c4;
+}
+
+html.dark-mode .btn-submit:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   NOT FOUND
+   ============================================================ */
 html.dark-mode .notfound-page {
   background: #121212;
 }
@@ -322,8 +630,8 @@ html.dark-mode .notfound-card {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
-html.dark-mode .notfound-card h1 {
-  color: #e0e0e0;
+html.dark-mode .big-404 {
+  color: #4a90d9;
 }
 
 html.dark-mode .description {
@@ -334,48 +642,58 @@ html.dark-mode .help-text {
   color: #888;
 }
 
-html.dark-mode .btn-secondary {
-  background: #252525;
-  border-color: #333;
-  color: #ccc;
+html.dark-mode .notfound-card .btn-secondary {
+  background: transparent;
+  border-color: #444;
+  color: #bbb;
 }
 
-html.dark-mode .btn-secondary:hover {
-  background: #2e2e2e;
-  color: #e0e0e0;
+html.dark-mode .notfound-card .btn-secondary:hover {
+  border-color: #4a90d9;
+  color: #6ab0ff;
+  background: #1a2a44;
 }
 
-/* === PAGE CONTAINER (ProfileView, FavorisView, MessageView, PublierView) === */
+/* ============================================================
+   FOOTER
+   ============================================================ */
+html.dark-mode .site-footer {
+  background: #0d0d0d;
+}
+
+html.dark-mode .brand-desc {
+  color: #778899;
+}
+
+html.dark-mode .social-links a {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #778899;
+}
+
+html.dark-mode .footer-col ul li a {
+  color: #778899;
+}
+
+html.dark-mode .footer-bottom {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+html.dark-mode .copyright {
+  color: #778899;
+}
+
+html.dark-mode .disclaimer {
+  color: #4a5568;
+}
+
+/* ============================================================
+   PAGE CONTAINER (ProfileView, FavorisView, MessageView, PublierView, ContactView)
+   ============================================================ */
 html.dark-mode .page-container {
   background: #121212;
 }
 
 html.dark-mode .form-wrapper {
-  background: #1e1e1e;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
-}
-
-/* === INPUTS GÉNÉRIQUES (hors .field — gérés séparément) === */
-html.dark-mode textarea,
-html.dark-mode select {
-  background: #252525;
-  color: #e0e0e0;
-  border-color: #333;
-}
-
-html.dark-mode textarea::placeholder {
-  color: #555;
-}
-
-/* Inputs standalone (pas dans un .field) */
-html.dark-mode input:not([type="checkbox"]):not([type="radio"]) {
-  color: #e0e0e0;
-}
-
-/* === TITRES ET TEXTE === */
-html.dark-mode h1,
-html.dark-mode h2,
-html.dark-mode h3,
-html.dark-mode h4 {
-  color: #e0e0e0;
+  background: transparent;
 }

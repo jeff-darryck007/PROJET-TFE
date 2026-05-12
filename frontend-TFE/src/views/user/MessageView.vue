@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Navbar from "../Navbar.vue";
+import Footer from "../Footer.vue";
 import "@fortawesome/fontawesome-free/css/all.css";
 import { ref } from "vue";
 
@@ -106,6 +107,8 @@ function selectConversation(id: number) {
         <p>Sélectionnez un article pour voir la conversation.</p>
       </main>
     </div>
+
+    <Footer />
   </div>
 </template>
 
@@ -113,13 +116,13 @@ function selectConversation(id: number) {
 .page-container {
   background: #f4f6f9;
   min-height: 100vh;
-  padding: 20px;
   font-family: Arial, sans-serif;
 }
 
 .content-messages {
   display: flex;
   gap: 20px;
+  padding: 20px;
 }
 
 /* SIDEBAR */

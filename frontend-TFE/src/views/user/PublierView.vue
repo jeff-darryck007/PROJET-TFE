@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Navbar from "../Navbar.vue";
+import Footer from "../Footer.vue";
 import "@fortawesome/fontawesome-free/css/all.css";
 import { ref } from "vue";
 
@@ -153,6 +154,8 @@ function submitArticle() {
         </form>
       </div>
     </div>
+
+    <Footer />
   </div>
 </template>
 

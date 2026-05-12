@@ -38,10 +38,6 @@ export async function loginUser(email, password) {
       password,
     });
 
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-    }
-
     return response.data;
   } catch (error) {
     if (error.response && error.response.status === 401) {

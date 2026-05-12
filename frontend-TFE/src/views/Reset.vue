@@ -1,5 +1,6 @@
 <template>
   <div class="reset-page">
+    <DarkToggle />
 
     <!-- PANNEAU GAUCHE -->
     <div class="left-panel">
@@ -148,6 +149,7 @@
 <script setup>
 import { ref, computed } from "vue"
 import { useRouter } from "vue-router"
+import DarkToggle from "../components/DarkToggle.vue"
 
 const router = useRouter()
 

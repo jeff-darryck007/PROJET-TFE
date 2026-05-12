@@ -13,6 +13,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Users;
 use App\Repository\UsersRepository;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 
 #[Route('/api', name: 'api_')]
 final class UsersController extends AbstractController
@@ -122,6 +124,102 @@ final class UsersController extends AbstractController
         return $this->json(['message' => 'Compte créé avec succès'], 201);
     }
 
+
+    // ENVOI DU CODE DE RÉINITIALISATION PAR EMAIL
+    #[Route('/forgot-password', name: 'forgot_password', methods: ['POST'])]
+    public function forgotPassword(
+        Request $request,
+        UsersRepository $usersRepository,
+        EntityManagerInterface $em,
+        MailerInterface $mailer
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+        $email = strtolower(trim($data['email'] ?? ''));
+
+        if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['error' => 'Adresse email invalide.'], 400);
+        }
+
+        $user = $usersRepository->findOneBy(['email' => $email]);
+
+        if (!$user) {
+            return $this->json(['error' => 'Aucun compte associé à cette adresse email.'], 404);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expiresAt = new \DateTime('+2 minutes');
+
+        $user->setResetCode($code);
+        $user->setResetCodeExpiresAt($expiresAt);
+        $em->flush();
+
+        $mailerFrom = $_ENV['MAILER_FROM'] ?? 'noreply@partagegratuit.be';
+
+        $emailMessage = (new Email())
+            ->from($mailerFrom)
+            ->to($email)
+            ->subject('Code de réinitialisation — PartageGratuit')
+            ->text(
+                "Bonjour,\n\n" .
+                "Votre code de réinitialisation de mot de passe est :\n\n" .
+                "  $code\n\n" .
+                "Ce code expire dans 2 minutes.\n" .
+                "Si vous n'avez pas demandé de réinitialisation, ignorez cet email.\n\n" .
+                "— L'équipe PartageGratuit"
+            );
+
+        try {
+            $mailer->send($emailMessage);
+        } catch (\Exception $e) {
+            return $this->json(['error' => 'Échec de l\'envoi de l\'email. Vérifiez la configuration SMTP. (' . $e->getMessage() . ')'], 500);
+        }
+
+        return $this->json([
+            'message' => 'Code envoyé.',
+            // ⚠️ DEV ONLY — retirer en production
+            'dev_code' => $code
+        ], 200);
+    }
+
+    // RÉINITIALISATION DU MOT DE PASSE AVEC LE CODE
+    #[Route('/reset-password', name: 'reset_password', methods: ['POST'])]
+    public function resetPassword(
+        Request $request,
+        UsersRepository $usersRepository,
+        EntityManagerInterface $em,
+        UserPasswordHasherInterface $passwordHasher
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+
+        $email    = strtolower(trim($data['email'] ?? ''));
+        $code     = trim($data['code'] ?? '');
+        $password = $data['password'] ?? '';
+
+        if (!$email || !$code || !$password) {
+            return $this->json(['error' => 'Champs manquants.'], 400);
+        }
+
+        $user = $usersRepository->findOneBy(['email' => $email]);
+
+        if (!$user || $user->getResetCode() !== $code) {
+            return $this->json(['error' => 'Code invalide.'], 400);
+        }
+
+        if (!$user->getResetCodeExpiresAt() || $user->getResetCodeExpiresAt() < new \DateTime()) {
+            return $this->json(['error' => 'Code expiré. Veuillez recommencer.'], 400);
+        }
+
+        if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+            return $this->json(['error' => 'Le mot de passe doit contenir au moins 8 caractères avec lettres et chiffres.'], 422);
+        }
+
+        $user->setPassword($passwordHasher->hashPassword($user, $password));
+        $user->setResetCode(null);
+        $user->setResetCodeExpiresAt(null);
+        $em->flush();
+
+        return $this->json(['message' => 'Mot de passe réinitialisé avec succès.'], 200);
+    }
 
     // LISTE DES UTILISATEURS
     #[Route('/users', name: 'app_users', methods: ['GET'])]

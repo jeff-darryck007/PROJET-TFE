@@ -98,6 +98,44 @@
             <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
           </div>
 
+          <!-- FORMULAIRE D'APPEL POUR UN BANNI -->
+          <div v-if="isBanned" class="ban-appeal">
+            <div class="ban-appeal-header">
+              <i class="fas fa-paper-plane"></i>
+              <span>Contacter l'administrateur</span>
+            </div>
+            <p class="ban-appeal-hint">Entrez votre adresse email et expliquez votre situation. L'administrateur recevra votre message.</p>
+
+            <div v-if="appealSuccess" class="appeal-success">
+              <i class="fas fa-check-circle"></i> {{ appealSuccess }}
+            </div>
+            <div v-else>
+              <div class="appeal-field">
+                <label>Votre adresse email</label>
+                <div class="field">
+                  <i class="fas fa-envelope"></i>
+                  <input type="email" v-model="appealEmail" placeholder="votre@email.com" />
+                </div>
+              </div>
+              <div class="appeal-field">
+                <label>Votre message</label>
+                <textarea
+                  v-model="appealMessage"
+                  placeholder="Expliquez pourquoi vous pensez que votre compte a été banni par erreur..."
+                  rows="3"
+                  class="appeal-textarea"
+                ></textarea>
+              </div>
+              <div v-if="appealError" class="appeal-error">
+                <i class="fas fa-exclamation-circle"></i> {{ appealError }}
+              </div>
+              <button type="button" class="appeal-btn" :disabled="appealSending" @click="handleAppeal">
+                <i :class="appealSending ? 'fas fa-spinner fa-spin' : 'fas fa-paper-plane'"></i>
+                {{ appealSending ? 'Envoi...' : 'Envoyer à l\'administrateur' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Se souvenir -->
           <label class="remember">
             <input type="checkbox" v-model="rememberMe" />
@@ -135,7 +173,7 @@
 <script setup>
 import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import { loginUser } from "../controller/controllerLogin.js"
+import { loginUser, sendBannedAppeal } from "../controller/controllerLogin.js"
 import DarkToggle from "../components/DarkToggle.vue"
 
 const router = useRouter()
@@ -147,18 +185,31 @@ const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref("")
 
+const isBanned = ref(false)
+const appealEmail   = ref("")
+const appealMessage = ref("")
+const appealSending = ref(false)
+const appealSuccess = ref("")
+const appealError   = ref("")
+
+const BAN_MSG = "Votre compte a été banni. Contactez l'administrateur."
+
 const goToRegister = () => router.push("/register")
 const goForgot = () => router.push("/forgot-password")
 const goToSite = () => router.push("/")
 
 watch([email, password], () => {
   errorMessage.value = ""
+  isBanned.value = false
+  appealSuccess.value = ""
+  appealError.value = ""
 })
 
 const handleLogin = async () => {
   try {
     loading.value = true
     errorMessage.value = ""
+    isBanned.value = false
 
     const data = await loginUser(email.value, password.value)
 
@@ -172,9 +223,32 @@ const handleLogin = async () => {
       errorMessage.value = "Impossible de joindre le serveur. Vérifiez que le backend est démarré."
     } else {
       errorMessage.value = err.message
+      if (err.message === BAN_MSG) {
+        isBanned.value = true
+        appealEmail.value = email.value
+      }
     }
   } finally {
     loading.value = false
+  }
+}
+
+const handleAppeal = async () => {
+  appealError.value = ""
+  appealSuccess.value = ""
+  if (!appealEmail.value || !appealMessage.value.trim()) {
+    appealError.value = "Veuillez renseigner votre email et votre message."
+    return
+  }
+  appealSending.value = true
+  try {
+    await sendBannedAppeal(appealEmail.value.trim(), appealMessage.value.trim())
+    appealSuccess.value = "Votre message a bien été envoyé à l'administrateur."
+    appealMessage.value = ""
+  } catch (err) {
+    appealError.value = err.message
+  } finally {
+    appealSending.value = false
   }
 }
 </script>
@@ -431,6 +505,106 @@ const handleLogin = async () => {
   align-items: center;
   gap: 8px;
 }
+
+/* === FORMULAIRE BANNI === */
+.ban-appeal {
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 12px;
+  padding: 18px 16px;
+  margin-bottom: 16px;
+}
+
+.ban-appeal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+.ban-appeal-header i { color: #d97706; }
+
+.ban-appeal-hint {
+  font-size: 13px;
+  color: #a16207;
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+
+.appeal-field {
+  margin-bottom: 12px;
+}
+.appeal-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #78350f;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.appeal-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: #222;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.appeal-textarea:focus { border-color: #d97706; }
+
+.appeal-error {
+  font-size: 12px;
+  color: #dc2626;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.appeal-success {
+  font-size: 13px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.appeal-btn {
+  width: 100%;
+  padding: 10px;
+  background: #d97706;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.2s;
+}
+.appeal-btn:hover:not(:disabled) { background: #b45309; }
+.appeal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* === SE SOUVENIR === */
 .remember {

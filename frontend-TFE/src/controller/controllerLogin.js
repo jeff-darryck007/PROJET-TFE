@@ -113,6 +113,16 @@ export async function unbanUser(id, token) {
   }
 }
 
+export async function sendBannedAppeal(email, message) {
+  try {
+    const response = await axios.post(`${BASE_URL}/api/banned-appeal`, { email, message });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de l'envoi du message");
+  }
+}
+
 export async function fetchAdminStats(token) {
   try {
     const response = await axios.get(`${BASE_URL}/api/admin/stats`, {

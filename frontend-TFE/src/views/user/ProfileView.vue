@@ -672,8 +672,12 @@ const menuItems = [
                     <p class="notif-text">{{ n.text }}</p>
                     <div class="notif-meta">
                       <span class="notif-time">{{ formatNotifDate(n.createAt) }}</span>
-                      <router-link v-if="n.anouncementId" :to="`/annonce/${n.anouncementId}`" class="notif-link">
-                        Voir l'annonce
+                      <router-link
+                        v-if="n.anouncementId"
+                        :to="n.type === 'message' ? `/MessageView?annonce=${n.anouncementId}` : `/annonce/${n.anouncementId}`"
+                        class="notif-link"
+                      >
+                        {{ n.type === 'message' ? 'Voir le message' : 'Voir l\'annonce' }}
                       </router-link>
                     </div>
                   </div>

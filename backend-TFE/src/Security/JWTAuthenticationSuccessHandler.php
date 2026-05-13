@@ -2,6 +2,7 @@
 
 namespace App\Security;
 
+use App\Entity\Users;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,9 +23,13 @@ class JWTAuthenticationSuccessHandler implements AuthenticationSuccessHandlerInt
         $user = $token->getUser();
 
         if (!$user instanceof UserInterface) {
+            return new JsonResponse(['error' => 'Invalid user'], 401);
+        }
+
+        if ($user instanceof Users && $user->getStatus() === 0) {
             return new JsonResponse(
-                ['error' => 'Invalid user'],
-                JsonResponse::HTTP_UNAUTHORIZED
+                ['error' => 'Votre compte a été banni. Contactez l\'administrateur.'],
+                401
             );
         }
 

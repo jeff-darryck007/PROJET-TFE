@@ -32,25 +32,91 @@ final class UsersController extends AbstractController
         ], 400);
     }
 
-    // RECUPERER UN UTILISATEUR PAR TOKEN  
-    #[Route('/me', name: 'api_me', methods: ['GET'])] 
+    // RECUPERER L'UTILISATEUR CONNECTÉ
+    #[Route('/me', name: 'api_me', methods: ['GET'])]
     public function me(#[CurrentUser] ?Users $user): JsonResponse
     {
         if (!$user) {
-            return $this->json([
-                'status' => 'error',
-                'message' => 'Utilisateur non authentifié'
-            ], 401);
+            return $this->json(['error' => 'Non authentifié'], 401);
         }
 
         return $this->json([
-            'status' => 'success',
-            'user' => [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'roles' => $user->getRoles(),
-            ]
+            'id'       => $user->getId(),
+            'email'    => $user->getEmail(),
+            'name'     => $user->getName(),
+            'surname'  => $user->getSurname(),
+            'roles'    => $user->getRoles(),
+            'credit'   => $user->getCredit(),
+            'createAt' => $user->getCreateAt()?->format('d/m/Y'),
+            'picture'  => $user->getPicture(),
         ]);
+    }
+
+    // MODIFIER LE PROFIL DE L'UTILISATEUR CONNECTÉ
+    #[Route('/me', name: 'api_me_update', methods: ['PATCH'])]
+    public function updateMe(
+        Request $request,
+        #[CurrentUser] ?Users $user,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        if (!$user) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        if (isset($data['name']) && trim($data['name']) !== '') {
+            $user->setName(trim(strip_tags($data['name'])));
+        }
+        if (isset($data['surname']) && trim($data['surname']) !== '') {
+            $user->setSurname(trim(strip_tags($data['surname'])));
+        }
+        if (isset($data['email']) && filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            $user->setEmail(strtolower(trim($data['email'])));
+        }
+
+        $em->flush();
+
+        return $this->json([
+            'message' => 'Profil mis à jour avec succès',
+            'name'    => $user->getName(),
+            'surname' => $user->getSurname(),
+            'email'   => $user->getEmail(),
+        ]);
+    }
+
+    // CHANGER LE MOT DE PASSE DE L'UTILISATEUR CONNECTÉ
+    #[Route('/me/change-password', name: 'api_me_change_password', methods: ['POST'])]
+    public function changeMyPassword(
+        Request $request,
+        #[CurrentUser] ?Users $user,
+        EntityManagerInterface $em,
+        UserPasswordHasherInterface $passwordHasher
+    ): JsonResponse {
+        if (!$user) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $oldPassword = $data['oldPassword'] ?? '';
+        $newPassword = $data['newPassword'] ?? '';
+
+        if (!$oldPassword || !$newPassword) {
+            return $this->json(['error' => 'Champs manquants'], 400);
+        }
+
+        if (!$passwordHasher->isPasswordValid($user, $oldPassword)) {
+            return $this->json(['error' => 'Ancien mot de passe incorrect'], 400);
+        }
+
+        if (strlen($newPassword) < 8 || !preg_match('/[A-Za-z]/', $newPassword) || !preg_match('/[0-9]/', $newPassword)) {
+            return $this->json(['error' => 'Le nouveau mot de passe doit contenir au moins 8 caractères avec lettres et chiffres'], 422);
+        }
+
+        $user->setPassword($passwordHasher->hashPassword($user, $newPassword));
+        $em->flush();
+
+        return $this->json(['message' => 'Mot de passe modifié avec succès']);
     }
 
     #[Route('/register', name: 'register', methods: ['POST'])]

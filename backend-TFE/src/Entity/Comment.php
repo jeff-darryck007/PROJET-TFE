@@ -14,10 +14,10 @@ class Comment
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $contenue = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTime $date = null;
 
     #[ORM\ManyToOne]
@@ -26,59 +26,25 @@ class Comment
     #[ORM\ManyToOne]
     private ?Anouncement $anouncement = null;
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
+    // Identifie le fil privé : l'utilisateur non-propriétaire de la conversation
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Users $threadUser = null;
 
-    public function getContenue(): ?string
-    {
-        return $this->contenue;
-    }
+    public function getId(): ?int { return $this->id; }
 
-    public function setContenue(string $contenue): static
-    {
-        $this->contenue = $contenue;
+    public function getContenue(): ?string { return $this->contenue; }
+    public function setContenue(string $contenue): static { $this->contenue = $contenue; return $this; }
 
-        return $this;
-    }
+    public function getDate(): ?\DateTime { return $this->date; }
+    public function setDate(\DateTime $date): static { $this->date = $date; return $this; }
 
-    public function getDate(): ?\DateTime
-    {
-        return $this->date;
-    }
+    public function getUser(): ?Users { return $this->user; }
+    public function setUser(?Users $user): static { $this->user = $user; return $this; }
 
-    public function setDate(\DateTime $date): static
-    {
-        $this->date = $date;
+    public function getAnouncement(): ?Anouncement { return $this->anouncement; }
+    public function setAnouncement(?Anouncement $anouncement): static { $this->anouncement = $anouncement; return $this; }
 
-        return $this;
-    }
-
-    public function getUser(): ?Users
-    {
-        return $this->user;
-    }
-
-    public function setUser(?Users $user): static
-    {
-        $this->user = $user;
-
-        return $this;
-    }
-
-    public function getAnouncement(): ?Anouncement
-    {
-        return $this->anouncement;
-    }
-
-    public function setAnouncement(?Anouncement $anouncement): static
-    {
-        $this->anouncement = $anouncement;
-
-        return $this;
-    }
+    public function getThreadUser(): ?Users { return $this->threadUser; }
+    public function setThreadUser(?Users $threadUser): static { $this->threadUser = $threadUser; return $this; }
 }
-
-
-

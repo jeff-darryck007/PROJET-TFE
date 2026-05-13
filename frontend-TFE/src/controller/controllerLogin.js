@@ -52,13 +52,38 @@ export async function loginUser(email, password) {
 export async function fetchUserProfile(token) {
   try {
     const response = await axios.get(`${BASE_URL}/api/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
-
     return response.data;
   } catch (error) {
     throw new Error("Erreur lors de la récupération du profil utilisateur");
+  }
+}
+
+// modifier le profil (nom, prénom, email)
+export async function updateProfile(data, token) {
+  try {
+    const response = await axios.patch(`${BASE_URL}/api/me`, data, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la mise à jour du profil");
+  }
+}
+
+// changer le mot de passe
+export async function changePassword(oldPassword, newPassword, token) {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/api/me/change-password`,
+      { oldPassword, newPassword },
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors du changement de mot de passe");
   }
 }

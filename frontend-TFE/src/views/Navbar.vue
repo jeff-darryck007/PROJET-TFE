@@ -8,15 +8,16 @@
 
     <div class="nav-center">
       <router-link to="/">Accueil</router-link>
-      <router-link to="/PublierView">Publier</router-link>
+      <router-link v-if="canPublier" to="/PublierView">Publier</router-link>
       <router-link to="/MessageView">Messages</router-link>
       <router-link to="/FavorisView">Favoris</router-link>
-      <router-link to="/ContactView">Contact</router-link>
+      <router-link v-if="canContact" to="/ContactView">Contact</router-link>
     </div>
 
     <div class="nav-right">
-      <router-link to="/NotificationView" class="link-nav-icon hide-xs">
+      <router-link to="/NotificationView" class="link-nav-icon hide-xs notif-wrap">
         <i class="fas fa-bell nav-icon"></i>
+        <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
       </router-link>
       <router-link to="/MessageView" class="link-nav-icon hide-xs">
         <i class="fas fa-envelope nav-icon"></i>
@@ -38,7 +39,7 @@
       <router-link to="/" @click="closeMenu">
         <i class="fas fa-home"></i><span>Accueil</span>
       </router-link>
-      <router-link to="/PublierView" @click="closeMenu">
+      <router-link v-if="canPublier" to="/PublierView" @click="closeMenu">
         <i class="fas fa-plus-circle"></i><span>Publier</span>
       </router-link>
       <router-link to="/MessageView" @click="closeMenu">
@@ -47,13 +48,15 @@
       <router-link to="/FavorisView" @click="closeMenu">
         <i class="fas fa-heart"></i><span>Favoris</span>
       </router-link>
-      <router-link to="/NotificationView" @click="closeMenu">
-        <i class="fas fa-bell"></i><span>Notifications</span>
+      <router-link to="/NotificationView" @click="closeMenu" class="mobile-notif">
+        <i class="fas fa-bell"></i>
+        <span>Notifications</span>
+        <span v-if="unreadCount > 0" class="notif-badge-mobile">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
       </router-link>
       <router-link to="/ProfileView" @click="closeMenu">
         <i class="fas fa-user-circle"></i><span>Profil</span>
       </router-link>
-      <router-link to="/ContactView" @click="closeMenu">
+      <router-link v-if="canContact" to="/ContactView" @click="closeMenu">
         <i class="fas fa-envelope-open-text"></i><span>Contact</span>
       </router-link>
       <a href="#" @click.prevent="toggleDark; closeMenu()">
@@ -72,17 +75,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchUnreadCount } from '../controller/controllerNotification.js'
 
-const router = useRouter()
-const menuOpen = ref(false)
-const isSticky = ref(false)
-const darkMode = ref(false)
+const router   = useRouter()
+const menuOpen  = ref(false)
+const isSticky  = ref(false)
+const darkMode  = ref(false)
+const unreadCount = ref(0)
+
+const userRoles = computed(() => {
+  const raw = localStorage.getItem('roles')
+  return raw ? raw.split(',').map(r => r.trim()) : []
+})
+
+const canPublier = computed(() =>
+  userRoles.value.some(r => r === 'donateur' || r === 'admin')
+)
+const canContact = computed(() =>
+  userRoles.value.some(r => r === 'visiteur' || r === 'donateur')
+)
+
+let pollInterval = null
 
 const toggleMenu = () => { menuOpen.value = !menuOpen.value }
-const closeMenu = () => { menuOpen.value = false }
+const closeMenu  = () => { menuOpen.value = false }
 const handleScroll = () => { isSticky.value = window.scrollY > 10 }
+
+async function loadUnreadCount() {
+  const token = localStorage.getItem('token')
+  if (!token) { unreadCount.value = 0; return }
+  try {
+    unreadCount.value = await fetchUnreadCount(token)
+  } catch { /* silencieux */ }
+}
 
 function toggleDark() {
   darkMode.value = !darkMode.value
@@ -94,18 +121,31 @@ function handleLogout() {
   localStorage.removeItem('token')
   localStorage.removeItem('idUser')
   localStorage.removeItem('roles')
+  unreadCount.value = 0
   closeMenu()
   router.push('/login')
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  // Écoute les mises à jour depuis NotificationView
+  window.addEventListener('notif-count-changed', loadUnreadCount)
+
   if (localStorage.getItem('darkMode') === '1') {
     darkMode.value = true
     document.documentElement.classList.add('dark-mode')
   }
+
+  loadUnreadCount()
+  // Polling toutes les 30 secondes
+  pollInterval = setInterval(loadUnreadCount, 30_000)
 })
-onBeforeUnmount(() => window.removeEventListener('scroll', handleScroll))
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('notif-count-changed', loadUnreadCount)
+  clearInterval(pollInterval)
+})
 </script>
 
 <style scoped>
@@ -268,6 +308,45 @@ onBeforeUnmount(() => window.removeEventListener('scroll', handleScroll))
   .logo { font-size: 17px; }
   .hide-xs { display: none; }
   .nav-icon { font-size: 18px; }
+}
+
+/* BADGE NOTIFICATION */
+.notif-wrap {
+  position: relative;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid white;
+  line-height: 1;
+}
+
+.notif-badge-mobile {
+  margin-left: auto;
+  background: #dc2626;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
 }
 
 .dark-toggle {

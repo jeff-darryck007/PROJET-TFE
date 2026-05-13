@@ -25,10 +25,10 @@
         <h4>Navigation</h4>
         <ul>
           <li><router-link to="/"><i class="fas fa-home"></i> Accueil</router-link></li>
-          <li><router-link to="/PublierView"><i class="fas fa-plus-circle"></i> Publier un article</router-link></li>
+          <li v-if="canPublier"><router-link to="/PublierView"><i class="fas fa-plus-circle"></i> Publier un article</router-link></li>
           <li><router-link to="/FavorisView"><i class="fas fa-heart"></i> Mes favoris</router-link></li>
           <li><router-link to="/MessageView"><i class="fas fa-envelope"></i> Messages</router-link></li>
-          <li><router-link to="/ContactView"><i class="fas fa-paper-plane"></i> Contact</router-link></li>
+          <li v-if="canContact"><router-link to="/ContactView"><i class="fas fa-paper-plane"></i> Contact</router-link></li>
         </ul>
       </div>
 
@@ -72,8 +72,21 @@
 
 <script setup>
 import '@fortawesome/fontawesome-free/css/all.css'
+import { computed } from 'vue'
 
 const currentYear = new Date().getFullYear()
+
+const userRoles = computed(() => {
+  const raw = localStorage.getItem('roles')
+  return raw ? raw.split(',').map(r => r.trim()) : []
+})
+
+const canPublier = computed(() =>
+  userRoles.value.some(r => r === 'donateur' || r === 'admin')
+)
+const canContact = computed(() =>
+  userRoles.value.some(r => r === 'visiteur' || r === 'donateur')
+)
 </script>
 
 <style scoped>

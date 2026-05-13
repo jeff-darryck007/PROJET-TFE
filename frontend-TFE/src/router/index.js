@@ -13,13 +13,14 @@ import PublierView from "@/views/user/PublierView.vue";
 import MessageView from "@/views/user/MessageView.vue";
 import NotificationView from "@/views/user/NotificationView.vue";
 import ContactView from "@/views/user/ContactView.vue";
+import AnouncementDetail from "@/views/user/AnouncementDetail.vue";
 
 
 const routes = [
   {
     path: "/",
-    name: "dashboard",
-    component: DashboardView,
+    name: "home",
+    component: Home,
   },
   {
     path: "/ContactView",
@@ -62,9 +63,14 @@ const routes = [
     component: Register,
   },
   {
-    path: "/home",
-    name: "home",
-    component: Home,
+    path: "/annonce/:id",
+    name: "annonce-detail",
+    component: AnouncementDetail,
+  },
+  {
+    path: "/dashboard",
+    name: "dashboard",
+    component: DashboardView,
   },
   {
     path: "/forgot-password",

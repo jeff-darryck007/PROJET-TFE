@@ -13,17 +13,19 @@ security:
         login:
             pattern: ^/api/login$
             stateless: true
+            user_checker: App\Security\UserChecker
             json_login:
                 check_path: /api/login
                 username_path: email
                 password_path: password
                 success_handler: App\Security\JWTAuthenticationSuccessHandler
-                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+                failure_handler: App\Security\AuthenticationFailureHandler
 
         # 🔐 API protégée par JWT
         api:
             pattern: ^/api
             stateless: true
+            user_checker: App\Security\UserChecker
             jwt: ~
 
         # 🔓 DEV

@@ -31,6 +31,9 @@ class Comment
     #[ORM\JoinColumn(nullable: true)]
     private ?Users $threadUser = null;
 
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $reportCount = 0;
+
     public function getId(): ?int { return $this->id; }
 
     public function getContenue(): ?string { return $this->contenue; }
@@ -47,4 +50,7 @@ class Comment
 
     public function getThreadUser(): ?Users { return $this->threadUser; }
     public function setThreadUser(?Users $threadUser): static { $this->threadUser = $threadUser; return $this; }
+
+    public function getReportCount(): int { return $this->reportCount; }
+    public function incrementReportCount(): static { $this->reportCount++; return $this; }
 }

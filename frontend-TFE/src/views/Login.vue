@@ -168,10 +168,10 @@ const handleLogin = async () => {
 
     router.push("/")
   } catch (err) {
-    if (err.message === "Identifiants invalides") {
-      errorMessage.value = "Adresse email ou mot de passe incorrect."
-    } else {
+    if (err.message === "Erreur serveur ou réseau") {
       errorMessage.value = "Impossible de joindre le serveur. Vérifiez que le backend est démarré."
+    } else {
+      errorMessage.value = err.message
     }
   } finally {
     loading.value = false

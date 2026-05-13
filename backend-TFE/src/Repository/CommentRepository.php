@@ -44,6 +44,19 @@ class CommentRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    // Liste des utilisateurs uniques qui ont envoyé un message sur une annonce
+    public function findRequestersForAnouncement(int $anouncementId): array
+    {
+        return $this->createQueryBuilder('c')
+            ->select('DISTINCT IDENTITY(c.threadUser) as userId')
+            ->join('c.threadUser', 'tu')
+            ->where('c.anouncement = :aid')
+            ->andWhere('c.threadUser IS NOT NULL')
+            ->setParameter('aid', $anouncementId)
+            ->getQuery()
+            ->getScalarResult();
+    }
+
     // Commentaires publics d'une annonce (threadUser IS NULL)
     public function findPublicComments(int $anouncementId): array
     {

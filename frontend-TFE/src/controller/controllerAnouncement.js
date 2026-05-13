@@ -60,6 +60,67 @@ export async function fetchMyAnouncements(token) {
   }
 }
 
+export async function fetchRequesters(id, token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/anouncement/${id}/requesters`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Erreur lors de la récupération des demandeurs");
+  }
+}
+
+export async function reserveAnouncement(id, reservedForUserId, token) {
+  try {
+    const response = await axios.patch(
+      `${BASE_URL}/api/anouncement/${id}/reserve`,
+      { reservedForUserId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la réservation");
+  }
+}
+
+export async function validateRecovery(id, token) {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/api/anouncement/${id}/validate`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la validation");
+  }
+}
+
+export async function fetchPendingRecoveries(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/my-pending-recoveries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Erreur lors de la récupération des annonces en attente");
+  }
+}
+
+export async function fetchMyRecoveredArticles(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/my-recovered-articles`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Erreur lors de la récupération des articles récupérés");
+  }
+}
+
 export async function deleteAnouncement(id, token) {
   try {
     const response = await axios.delete(`${BASE_URL}/api/anouncement/${id}`, {

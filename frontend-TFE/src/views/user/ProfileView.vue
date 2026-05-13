@@ -5,7 +5,8 @@ import Navbar from "../Navbar.vue";
 import Footer from "../Footer.vue";
 import "@fortawesome/fontawesome-free/css/all.css";
 import { fetchUserProfile, updateProfile, changePassword } from "../../controller/controllerLogin.js";
-import { fetchMyAnouncements, deleteAnouncement } from "../../controller/controllerAnouncement.js";
+import { fetchMyAnouncements, deleteAnouncement, fetchMyRecoveredArticles } from "../../controller/controllerAnouncement.js";
+import { fetchNotifications, markAsRead, markAllAsRead, deleteNotification } from "../../controller/controllerNotification.js";
 import { URL_FOLDER_ANOUNCEMENT } from "../../server/config.js";
 
 const router = useRouter();
@@ -30,6 +31,31 @@ const confirmDelId        = ref(null);
 const STATUS_LABEL = { 1: "Disponible", 2: "Réservé", 3: "Donné" };
 const helpTab = ref("visiteur");
 
+const recoveredArticles      = ref([]);
+const loadingRecovered       = ref(false);
+const recoveredThisMonth     = ref(0);
+const canContact             = ref(true);
+
+const notifications      = ref([]);
+const loadingNotifs      = ref(false);
+const unreadCount        = ref(0);
+const deletingNotifId    = ref(null);
+
+const NOTIF_ICONS = {
+  "new-article": { icon: "fas fa-bullhorn",       color: "#0054a6" },
+  "message":     { icon: "fas fa-envelope",        color: "#0054a6" },
+  "reservation": { icon: "fas fa-handshake",       color: "#d97706" },
+  "credit":      { icon: "fas fa-coins",           color: "#16a34a" },
+  "report":      { icon: "fas fa-flag",            color: "#dc2626" },
+};
+
+function notifIcon(type) {
+  return NOTIF_ICONS[type]?.icon ?? "fas fa-bell";
+}
+function notifColor(type) {
+  return NOTIF_ICONS[type]?.color ?? "#888";
+}
+
 function flash(type, msg) {
   successMsg.value = "";
   errorMsg.value   = "";
@@ -52,7 +78,79 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+
+  // Charger le badge de notifications
+  try {
+    const nd = await fetchNotifications(token);
+    unreadCount.value = nd.unreadCount ?? 0;
+  } catch { /* silencieux */ }
 });
+
+async function loadNotifications() {
+  loadingNotifs.value = true;
+  try {
+    const token = localStorage.getItem("token");
+    const data = await fetchNotifications(token);
+    notifications.value = data.notifications ?? [];
+    unreadCount.value   = data.unreadCount   ?? 0;
+  } catch { /* silencieux */ }
+  finally { loadingNotifs.value = false; }
+}
+
+async function handleMarkRead(id) {
+  const token = localStorage.getItem("token");
+  try {
+    await markAsRead(id, token);
+    const n = notifications.value.find(n => n.id === id);
+    if (n) { n.isRead = true; unreadCount.value = Math.max(0, unreadCount.value - 1); }
+  } catch { /* silencieux */ }
+}
+
+async function handleMarkAllRead() {
+  const token = localStorage.getItem("token");
+  try {
+    await markAllAsRead(token);
+    notifications.value.forEach(n => { n.isRead = true; });
+    unreadCount.value = 0;
+  } catch { /* silencieux */ }
+}
+
+async function handleDeleteNotif(id) {
+  const token = localStorage.getItem("token");
+  deletingNotifId.value = id;
+  try {
+    await deleteNotification(id, token);
+    const n = notifications.value.find(n => n.id === id);
+    if (n && !n.isRead) unreadCount.value = Math.max(0, unreadCount.value - 1);
+    notifications.value = notifications.value.filter(n => n.id !== id);
+  } catch { /* silencieux */ }
+  finally { deletingNotifId.value = null; }
+}
+
+function formatNotifDate(str) {
+  if (!str) return "";
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60)   return "À l'instant";
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  return d.toLocaleDateString("fr-BE", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+async function loadRecoveredArticles() {
+  if (recoveredArticles.value.length > 0) return;
+  loadingRecovered.value = true;
+  try {
+    const token = localStorage.getItem("token");
+    const data = await fetchMyRecoveredArticles(token);
+    recoveredArticles.value  = data.data ?? [];
+    recoveredThisMonth.value = data.recoveredThisMonth ?? 0;
+    canContact.value         = data.canContact ?? true;
+  } catch { /* silencieux */ }
+  finally { loadingRecovered.value = false; }
+}
 
 async function loadMyAnouncements() {
   if (myAnouncements.value.length > 0) return;
@@ -166,7 +264,8 @@ const menuItems = [
   {
     section: "Mes annonces",
     items: [
-      { key: "myAnouncements", label: "Mes annonces", icon: "fas fa-bullhorn" },
+      { key: "myAnouncements",    label: "Mes annonces",        icon: "fas fa-bullhorn"  },
+      { key: "recoveredArticles", label: "Articles récupérés",  icon: "fas fa-box-open"  },
     ],
   },
   {
@@ -174,6 +273,12 @@ const menuItems = [
     items: [
       { key: "changePassword", label: "Changer le mot de passe", icon: "fas fa-lock"    },
       { key: "accountInfo",    label: "Informations du compte",  icon: "fas fa-id-card" },
+    ],
+  },
+  {
+    section: "Notifications",
+    items: [
+      { key: "notifications", label: "Mes notifications", icon: "fas fa-bell" },
     ],
   },
   {
@@ -200,10 +305,13 @@ const menuItems = [
               v-for="item in group.items"
               :key="item.key"
               :class="['menu-item', { active: activeMenu === item.key }]"
-              @click="activeMenu = item.key; successMsg = ''; errorMsg = ''; if(item.key === 'myAnouncements') loadMyAnouncements()"
+              @click="activeMenu = item.key; successMsg = ''; errorMsg = ''; if(item.key === 'myAnouncements') loadMyAnouncements(); if(item.key === 'notifications') loadNotifications(); if(item.key === 'recoveredArticles') loadRecoveredArticles()"
             >
               <i :class="item.icon"></i>
               {{ item.label }}
+              <span v-if="item.key === 'notifications' && unreadCount > 0" class="notif-badge-menu">
+                {{ unreadCount }}
+              </span>
             </li>
           </ul>
         </div>
@@ -357,7 +465,13 @@ const menuItems = [
                 </div>
                 <div class="info-row">
                   <span class="info-label"><i class="fas fa-coins"></i> Crédit</span>
-                  <span class="info-value credit">{{ user?.credit ?? 0 }} €</span>
+                  <span class="info-value credit">{{ user?.credit ?? 0 }} pts</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label"><i class="fas fa-box-open"></i> Articles récupérés</span>
+                  <span class="info-value recovered">
+                    <i class="fas fa-check-circle"></i> {{ user?.recoveredCount ?? 0 }} article{{ (user?.recoveredCount ?? 0) !== 1 ? 's' : '' }}
+                  </span>
                 </div>
                 <div class="info-row">
                   <span class="info-label"><i class="fas fa-calendar-alt"></i> Compte créé le</span>
@@ -429,6 +543,161 @@ const menuItems = [
                 </div>
               </div>
 
+            </div>
+          </div>
+
+          <!-- ARTICLES RÉCUPÉRÉS -->
+          <div v-if="activeMenu === 'recoveredArticles'" class="content-card">
+            <div class="form-section" style="padding-top: 30px;">
+              <div class="anouncements-header">
+                <h2><i class="fas fa-box-open"></i> Articles récupérés</h2>
+              </div>
+
+              <!-- Barre de quota mensuel -->
+              <div class="quota-bar-wrap">
+                <div class="quota-bar-header">
+                  <span class="quota-label">
+                    <i class="fas fa-calendar-alt"></i>
+                    Récupérations ce mois-ci
+                  </span>
+                  <span class="quota-count" :class="{ 'quota-full': recoveredThisMonth >= 5 }">
+                    {{ recoveredThisMonth }} / 5
+                  </span>
+                </div>
+                <div class="quota-track">
+                  <div
+                    class="quota-fill"
+                    :style="{ width: Math.min(recoveredThisMonth / 5 * 100, 100) + '%' }"
+                    :class="{ 'quota-fill-full': recoveredThisMonth >= 5 }"
+                  ></div>
+                </div>
+                <p v-if="recoveredThisMonth >= 5" class="quota-warning">
+                  <i class="fas fa-lock"></i>
+                  Limite mensuelle atteinte. Vous pourrez contacter des donneurs à nouveau dans 30 jours.
+                </p>
+                <p v-else class="quota-ok">
+                  <i class="fas fa-check-circle"></i>
+                  Il vous reste {{ 5 - recoveredThisMonth }} récupération{{ 5 - recoveredThisMonth > 1 ? 's' : '' }} disponible{{ 5 - recoveredThisMonth > 1 ? 's' : '' }} ce mois-ci.
+                </p>
+              </div>
+
+              <!-- LOADING -->
+              <div v-if="loadingRecovered" class="state-box">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Chargement...</p>
+              </div>
+
+              <!-- VIDE -->
+              <div v-else-if="recoveredArticles.length === 0" class="state-box">
+                <i class="fas fa-box-open"></i>
+                <p>Vous n'avez pas encore récupéré d'article.</p>
+              </div>
+
+              <!-- GRILLE -->
+              <div v-else class="my-grid">
+                <div v-for="a in recoveredArticles" :key="a.id" class="my-card recovered-card">
+
+                  <!-- IMAGE -->
+                  <div class="my-card-img">
+                    <img
+                      v-if="a.pictures && a.pictures.length > 0"
+                      :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`"
+                      :alt="a.title"
+                    />
+                    <div v-else class="my-no-img"><i class="fas fa-image"></i></div>
+                    <span class="my-badge badge-recovered">
+                      <i class="fas fa-check"></i> Récupéré
+                    </span>
+                  </div>
+
+                  <!-- INFOS -->
+                  <div class="my-card-body">
+                    <span class="my-tag">{{ a.categorie }}</span>
+                    <p class="my-title">{{ a.title }}</p>
+                    <p class="my-date">
+                      <i class="fas fa-user"></i> {{ a.donorName }}
+                    </p>
+                    <p v-if="a.recoveredAt" class="my-date">
+                      <i class="fas fa-calendar-check"></i> {{ formatDate(a.recoveredAt) }}
+                    </p>
+                  </div>
+
+                  <!-- ACTION -->
+                  <div class="my-card-footer">
+                    <router-link :to="`/annonce/${a.id}`" class="btn-view">
+                      <i class="fas fa-eye"></i> Voir
+                    </router-link>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- NOTIFICATIONS -->
+          <div v-if="activeMenu === 'notifications'" class="content-card">
+            <div class="form-section" style="padding-top: 30px;">
+              <div class="notif-header">
+                <h2><i class="fas fa-bell"></i> Mes notifications</h2>
+                <button
+                  v-if="notifications.some(n => !n.isRead)"
+                  class="btn-mark-all"
+                  @click="handleMarkAllRead"
+                >
+                  <i class="fas fa-check-double"></i> Tout marquer comme lu
+                </button>
+              </div>
+
+              <div v-if="loadingNotifs" class="state-box">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Chargement...</p>
+              </div>
+
+              <div v-else-if="notifications.length === 0" class="state-box">
+                <i class="fas fa-bell-slash"></i>
+                <p>Aucune notification pour le moment.</p>
+              </div>
+
+              <div v-else class="notif-list">
+                <div
+                  v-for="n in notifications"
+                  :key="n.id"
+                  class="notif-item"
+                  :class="{ unread: !n.isRead }"
+                >
+                  <div class="notif-icon-wrap" :style="{ background: notifColor(n.type) + '18', color: notifColor(n.type) }">
+                    <i :class="notifIcon(n.type)"></i>
+                  </div>
+                  <div class="notif-body">
+                    <p class="notif-text">{{ n.text }}</p>
+                    <div class="notif-meta">
+                      <span class="notif-time">{{ formatNotifDate(n.createAt) }}</span>
+                      <router-link v-if="n.anouncementId" :to="`/annonce/${n.anouncementId}`" class="notif-link">
+                        Voir l'annonce
+                      </router-link>
+                    </div>
+                  </div>
+                  <div class="notif-actions">
+                    <button
+                      v-if="!n.isRead"
+                      class="btn-read"
+                      title="Marquer comme lu"
+                      @click="handleMarkRead(n.id)"
+                    >
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <span v-else class="notif-read-dot" title="Lu"><i class="fas fa-check-double"></i></span>
+                    <button
+                      class="btn-del-notif"
+                      :disabled="deletingNotifId === n.id"
+                      title="Supprimer"
+                      @click="handleDeleteNotif(n.id)"
+                    >
+                      <i :class="deletingNotifId === n.id ? 'fas fa-spinner fa-spin' : 'fas fa-times'"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1109,6 +1378,260 @@ const menuItems = [
   transition: background 0.2s, color 0.2s;
 }
 .btn-del:hover, .btn-del.confirm { background: #dc2626; color: white; }
+
+/* ARTICLES RÉCUPÉRÉS - valeur dans accountInfo */
+.recovered {
+  font-weight: 700;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.recovered i { color: #16a34a; }
+
+/* BADGE "Récupéré" sur les cartes */
+.badge-recovered {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* CARTE RÉCUPÉRÉE */
+.recovered-card { border-color: #bbf7d0; }
+
+/* QUOTA MENSUEL */
+.quota-bar-wrap {
+  background: #f8faff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.quota-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.quota-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.quota-label i { color: #0054a6; }
+
+.quota-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0054a6;
+}
+.quota-count.quota-full { color: #dc2626; }
+
+.quota-track {
+  width: 100%;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.quota-fill {
+  height: 100%;
+  background: #0054a6;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.quota-fill-full { background: #dc2626; }
+
+.quota-warning {
+  font-size: 13px;
+  color: #b91c1c;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.quota-warning i { color: #dc2626; }
+
+.quota-ok {
+  font-size: 13px;
+  color: #15803d;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.quota-ok i { color: #16a34a; }
+
+/* NOTIFICATIONS - BADGE MENU */
+.notif-badge-menu {
+  margin-left: auto;
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 16px;
+}
+
+/* NOTIFICATIONS - EN-TÊTE */
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.notif-header h2 { margin: 0; }
+
+.btn-mark-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: #eef4ff;
+  color: #0054a6;
+  border: 1px solid #c7d9f5;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-mark-all:hover { background: #0054a6; color: white; border-color: #0054a6; }
+
+/* NOTIFICATIONS - LISTE */
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fafbff;
+  border: 1px solid #eef0f5;
+  transition: box-shadow 0.2s;
+}
+.notif-item:hover { box-shadow: 0 3px 10px rgba(0,84,166,0.07); }
+.notif-item.unread {
+  background: #f0f6ff;
+  border-color: #c7d9f5;
+  border-left: 3px solid #0054a6;
+}
+
+/* NOTIFICATIONS - ICÔNE */
+.notif-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* NOTIFICATIONS - CORPS */
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-text {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #222;
+  line-height: 1.5;
+}
+
+.notif-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notif-time {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.notif-link {
+  font-size: 12px;
+  color: #0054a6;
+  font-weight: 600;
+  text-decoration: none;
+}
+.notif-link:hover { text-decoration: underline; }
+
+/* NOTIFICATIONS - ACTIONS */
+.notif-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-read {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #c7d9f5;
+  background: white;
+  color: #0054a6;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-read:hover { background: #0054a6; color: white; }
+
+.notif-read-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-del-notif {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #fca5a5;
+  background: white;
+  color: #dc2626;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-del-notif:hover:not(:disabled) { background: #dc2626; color: white; }
+.btn-del-notif:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* RESPONSIVE */
 @media (max-width: 900px) {

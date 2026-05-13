@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 
 use App\Entity\Users;
+use App\Repository\AnouncementRepository;
 use App\Repository\UsersRepository;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Mailer\MailerInterface;
@@ -34,21 +35,45 @@ final class UsersController extends AbstractController
 
     // RECUPERER L'UTILISATEUR CONNECTÉ
     #[Route('/me', name: 'api_me', methods: ['GET'])]
-    public function me(#[CurrentUser] ?Users $user): JsonResponse
-    {
+    public function me(
+        #[CurrentUser] ?Users $user,
+        AnouncementRepository $anouncementRepo
+    ): JsonResponse {
         if (!$user) {
             return $this->json(['error' => 'Non authentifié'], 401);
         }
 
+        $recoveredCount = $anouncementRepo->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.reservedForUser = :user')
+            ->andWhere('a.status = 3')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $thirtyDaysAgo = new \DateTime('-30 days');
+        $recoveredThisMonth = (int) $anouncementRepo->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.reservedForUser = :user')
+            ->andWhere('a.status = 3')
+            ->andWhere('a.recoveredAt >= :limit')
+            ->setParameter('user', $user)
+            ->setParameter('limit', $thirtyDaysAgo)
+            ->getQuery()
+            ->getSingleScalarResult();
+
         return $this->json([
-            'id'       => $user->getId(),
-            'email'    => $user->getEmail(),
-            'name'     => $user->getName(),
-            'surname'  => $user->getSurname(),
-            'roles'    => $user->getRoles(),
-            'credit'   => $user->getCredit(),
-            'createAt' => $user->getCreateAt()?->format('d/m/Y'),
-            'picture'  => $user->getPicture(),
+            'id'                 => $user->getId(),
+            'email'              => $user->getEmail(),
+            'name'               => $user->getName(),
+            'surname'            => $user->getSurname(),
+            'roles'              => $user->getRoles(),
+            'credit'             => $user->getCredit(),
+            'createAt'           => $user->getCreateAt()?->format('d/m/Y'),
+            'picture'            => $user->getPicture(),
+            'recoveredCount'     => (int) $recoveredCount,
+            'recoveredThisMonth' => $recoveredThisMonth,
+            'canContact'         => $recoveredThisMonth < 5,
         ]);
     }
 

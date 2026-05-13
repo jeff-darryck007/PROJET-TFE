@@ -60,6 +60,29 @@ export async function reportComment(commentId, token) {
   }
 }
 
+export async function fetchReportedComments(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/admin/reported-comments`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Erreur lors du chargement des commentaires signalés");
+  }
+}
+
+export async function deleteAdminComment(id, token) {
+  try {
+    const response = await axios.delete(`${BASE_URL}/api/admin/comment/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la suppression");
+  }
+}
+
 export async function fetchMyConversations(token) {
   const response = await axios.get(
     `${BASE_URL}/api/my-conversations`,

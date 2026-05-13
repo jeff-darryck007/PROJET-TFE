@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../Navbar.vue'
 import Footer from '../Footer.vue'
 import '@fortawesome/fontawesome-free/css/all.css'
-import { fetchAnouncementById, deleteAnouncement } from '../../controller/controllerAnouncement.js'
+import { fetchAnouncementById, deleteAnouncement, fetchRequesters, reserveAnouncement, fetchMyRecoveredArticles } from '../../controller/controllerAnouncement.js'
 import { toggleFavorite, fetchLikedIds } from '../../controller/controllerFavorite.js'
 import { fetchPublicComments, sendPublicComment, reportComment } from '../../controller/controllerComment.js'
 import { URL_FOLDER_ANOUNCEMENT } from '../../server/config.js'
@@ -30,6 +30,12 @@ const commentError      = ref('')
 const isLoggedIn        = ref(!!token)
 const reportConfirmId   = ref(null)
 const reportedIds       = ref(new Set())
+const requesters        = ref([])
+const reserving         = ref(false)
+const reserveError      = ref('')
+const selectedRequester = ref(null)
+const canContact        = ref(true)
+const recoveredThisMonth = ref(0)
 
 const STATUS_LABEL = { 1: 'Disponible', 2: 'Réservé', 3: 'Donné' }
 
@@ -38,12 +44,15 @@ onMounted(async () => {
   try {
     anouncement.value = await fetchAnouncementById(id, token)
     if (token) {
-      const [ids, commentsData] = await Promise.all([
+      const [ids, commentsData, recoveredData] = await Promise.all([
         fetchLikedIds(token),
         fetchPublicComments(id, token),
+        fetchMyRecoveredArticles(token),
       ])
       liked.value = ids.includes(id)
       publicComments.value = commentsData.comments ?? []
+      canContact.value = recoveredData.canContact ?? true
+      recoveredThisMonth.value = recoveredData.recoveredThisMonth ?? 0
     }
   } catch (e) {
     error.value = e.message || 'Annonce introuvable.'
@@ -119,6 +128,42 @@ function formatDate(str) {
 function donorInitials(name) {
   if (!name) return '?'
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+}
+
+async function loadRequesters() {
+  if (requesters.value.length > 0) return
+  try {
+    const data = await fetchRequesters(anouncement.value.id, token)
+    requesters.value = data.requesters ?? []
+  } catch { /* silencieux */ }
+}
+
+async function handleReserve(userId) {
+  reserving.value = true
+  reserveError.value = ''
+  try {
+    const res = await reserveAnouncement(anouncement.value.id, userId, token)
+    anouncement.value.status = res.status
+    anouncement.value.reservedForUserId = res.reservedForUserId ?? null
+    selectedRequester.value = null
+  } catch (e) {
+    reserveError.value = e.message
+  } finally {
+    reserving.value = false
+  }
+}
+
+async function handleCancelReserve() {
+  reserving.value = true
+  try {
+    const res = await reserveAnouncement(anouncement.value.id, null, token)
+    anouncement.value.status = res.status
+    anouncement.value.reservedForUserId = null
+  } catch (e) {
+    reserveError.value = e.message
+  } finally {
+    reserving.value = false
+  }
 }
 
 async function handleFavorite() {
@@ -281,7 +326,13 @@ async function handleDelete() {
 
               <!-- Non-propriétaire : contacter le donneur -->
               <template v-else>
+                <div v-if="isLoggedIn && !canContact" class="contact-limit-msg">
+                  <i class="fas fa-lock"></i>
+                  Limite atteinte : {{ recoveredThisMonth }}/5 récupérations ce mois-ci.<br />
+                  Vous pourrez à nouveau contacter des donneurs dans 30 jours.
+                </div>
                 <button
+                  v-else
                   class="btn-contact"
                   :disabled="anouncement.status !== 1"
                   @click="contactDonor"
@@ -304,6 +355,59 @@ async function handleDelete() {
               <button class="btn-back-link" @click="router.back()">
                 <i class="fas fa-arrow-left"></i> Retour aux annonces
               </button>
+            </div>
+
+            <!-- GESTION RÉSERVATION (propriétaire uniquement) -->
+            <div v-if="isOwner && anouncement.status !== 3" class="card-section reserve-card">
+              <h3><i class="fas fa-handshake"></i> Gestion de la récupération</h3>
+
+              <div v-if="reserveError" class="reserve-error">
+                <i class="fas fa-exclamation-circle"></i> {{ reserveError }}
+              </div>
+
+              <!-- Statut 1 : choisir un demandeur -->
+              <template v-if="anouncement.status === 1">
+                <p class="reserve-hint">Sélectionnez la personne qui va récupérer l'objet pour la notifier.</p>
+                <button class="btn-load-req" @click="loadRequesters" v-if="requesters.length === 0">
+                  <i class="fas fa-users"></i> Voir les demandeurs
+                </button>
+                <div v-if="requesters.length === 0 && false" class="reserve-empty">
+                  Aucun demandeur pour le moment.
+                </div>
+                <ul v-if="requesters.length > 0" class="requester-list">
+                  <li
+                    v-for="r in requesters"
+                    :key="r.id"
+                    class="requester-item"
+                    :class="{ selected: selectedRequester === r.id }"
+                    @click="selectedRequester = r.id"
+                  >
+                    <div class="req-avatar">{{ r.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() }}</div>
+                    <span class="req-name">{{ r.name }}</span>
+                    <i v-if="selectedRequester === r.id" class="fas fa-check req-check"></i>
+                  </li>
+                </ul>
+                <button
+                  v-if="requesters.length > 0"
+                  class="btn-reserve"
+                  :disabled="!selectedRequester || reserving"
+                  @click="handleReserve(selectedRequester)"
+                >
+                  <i :class="reserving ? 'fas fa-spinner fa-spin' : 'fas fa-lock'"></i>
+                  {{ reserving ? 'Réservation...' : 'Réserver pour cette personne' }}
+                </button>
+              </template>
+
+              <!-- Statut 2 : annonce réservée -->
+              <template v-if="anouncement.status === 2">
+                <div class="reserve-status">
+                  <i class="fas fa-clock reserve-icon"></i>
+                  <p>Cet article est réservé. En attente de la confirmation du bénéficiaire.</p>
+                </div>
+                <button class="btn-cancel-reserve" :disabled="reserving" @click="handleCancelReserve">
+                  <i class="fas fa-unlock"></i> Remettre en disponible
+                </button>
+              </template>
             </div>
 
             <!-- INFOS SUPPLÉMENTAIRES -->
@@ -672,6 +776,19 @@ async function handleDelete() {
 .btn-contact:hover:not(:disabled) { background: #003f7d; }
 .btn-contact:disabled { background: #9ab3d4; cursor: not-allowed; }
 
+.contact-limit-msg {
+  width: 100%;
+  padding: 14px 16px;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.6;
+  text-align: center;
+}
+.contact-limit-msg i { margin-right: 6px; color: #d97706; }
+
 .btn-fav {
   width: 100%;
   padding: 11px;
@@ -755,6 +872,131 @@ async function handleDelete() {
 }
 .extra-info li i { color: #0054a6; width: 16px; text-align: center; }
 .extra-info li span { font-weight: 600; color: #333; }
+
+/* ===== RÉSERVATION ===== */
+.reserve-card h3 { color: #16a34a; }
+.reserve-card h3 i { color: #16a34a; }
+
+.reserve-hint {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.reserve-error {
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-load-req {
+  width: 100%;
+  padding: 10px;
+  background: #f0fdf4;
+  border: 1.5px dashed #86efac;
+  border-radius: 9px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+.btn-load-req:hover { background: #dcfce7; }
+
+.requester-list { list-style: none; padding: 0; margin: 0 0 12px 0; display: flex; flex-direction: column; gap: 8px; }
+
+.requester-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1.5px solid #e8ecf0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.requester-item:hover { border-color: #16a34a; background: #f0fdf4; }
+.requester-item.selected { border-color: #16a34a; background: #dcfce7; }
+
+.req-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.req-name { flex: 1; font-size: 14px; font-weight: 600; color: #222; }
+.req-check { color: #16a34a; font-size: 16px; }
+
+.btn-reserve {
+  width: 100%;
+  padding: 12px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+.btn-reserve:hover:not(:disabled) { background: #15803d; }
+.btn-reserve:disabled { background: #86efac; cursor: not-allowed; }
+
+.reserve-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fef9c3;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.reserve-icon { font-size: 22px; color: #d97706; flex-shrink: 0; }
+.reserve-status p { margin: 0; font-size: 13px; color: #92400e; line-height: 1.5; }
+
+.btn-cancel-reserve {
+  width: 100%;
+  padding: 10px;
+  background: white;
+  color: #d97706;
+  border: 1.5px solid #fde68a;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.btn-cancel-reserve:hover:not(:disabled) { background: #fffbeb; border-color: #d97706; }
 
 /* ===== COMMENTAIRES ===== */
 .comments-section {

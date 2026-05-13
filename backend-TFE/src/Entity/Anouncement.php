@@ -47,6 +47,13 @@ class Anouncement
     #[ORM\ManyToOne(inversedBy: 'listAnouncements')]
     private ?Users $user = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Users $reservedForUser = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTime $recoveredAt = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -180,6 +187,30 @@ class Anouncement
     public function setUser(?Users $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function getReservedForUser(): ?Users
+    {
+        return $this->reservedForUser;
+    }
+
+    public function setReservedForUser(?Users $user): static
+    {
+        $this->reservedForUser = $user;
+
+        return $this;
+    }
+
+    public function getRecoveredAt(): ?\DateTime
+    {
+        return $this->recoveredAt;
+    }
+
+    public function setRecoveredAt(?\DateTime $recoveredAt): static
+    {
+        $this->recoveredAt = $recoveredAt;
 
         return $this;
     }

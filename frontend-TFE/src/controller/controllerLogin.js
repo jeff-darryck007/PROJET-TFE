@@ -41,7 +41,8 @@ export async function loginUser(email, password) {
     return response.data;
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      throw new Error("Identifiants invalides");
+      const msg = error.response.data?.error;
+      throw new Error(msg || "Adresse e-mail ou mot de passe incorrect.");
     } else {
       throw new Error("Erreur serveur ou réseau");
     }
@@ -85,5 +86,52 @@ export async function changePassword(oldPassword, newPassword, token) {
   } catch (error) {
     const msg = error.response?.data?.error;
     throw new Error(msg || "Erreur lors du changement de mot de passe");
+  }
+}
+
+export async function banUser(id, token) {
+  try {
+    const response = await axios.patch(`${BASE_URL}/api/admin/users/${id}/ban`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors du bannissement");
+  }
+}
+
+export async function unbanUser(id, token) {
+  try {
+    const response = await axios.patch(`${BASE_URL}/api/admin/users/${id}/unban`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors du débannissement");
+  }
+}
+
+export async function fetchAdminStats(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/admin/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Erreur lors du chargement des statistiques");
+  }
+}
+
+export async function fetchAdminUsers(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/admin/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la récupération des utilisateurs");
   }
 }

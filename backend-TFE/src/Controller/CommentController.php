@@ -253,13 +253,14 @@ final class CommentController extends AbstractController
             return $this->json(['error' => 'Commentaire introuvable'], 404);
         }
 
+        $comment->incrementReportCount();
+
         $admin = $usersRepo->findAdmin();
-        if ($admin) {
+        if ($admin && $comment->getReportCount() >= 3) {
             $notif = new Notification();
             $notif->setText(sprintf(
-                'Commentaire signalé par %s %s : "%s"',
-                $user->getName(),
-                $user->getSurname(),
+                'Commentaire signalé %d fois : "%s"',
+                $comment->getReportCount(),
                 mb_strimwidth($comment->getContenue(), 0, 80, '...')
             ));
             $notif->setType('report');
@@ -268,8 +269,9 @@ final class CommentController extends AbstractController
             $notif->setUser($admin);
             $notif->setAnouncement($comment->getAnouncement());
             $em->persist($notif);
-            $em->flush();
         }
+
+        $em->flush();
 
         return $this->json(['message' => 'Commentaire signalé avec succès']);
     }

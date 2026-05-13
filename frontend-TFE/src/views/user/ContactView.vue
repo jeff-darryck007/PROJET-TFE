@@ -87,7 +87,7 @@ function goToMessages() {
     <Navbar />
 
     <div class="form-wrapper">
-      <div class="card">
+      <div class="card pg-scale-in">
 
         <!-- SUCCÈS -->
         <div v-if="sent" class="success-state">

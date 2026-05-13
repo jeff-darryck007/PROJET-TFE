@@ -97,7 +97,7 @@ function formatDate(str) {
     <Navbar />
 
     <div class="wrapper">
-      <div class="panel">
+      <div class="panel pg-slide-up">
 
         <!-- HEADER -->
         <div class="panel-header">

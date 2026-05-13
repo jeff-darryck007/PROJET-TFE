@@ -202,6 +202,7 @@ async function openAdminUsers() {
 const STATUS_USER   = { 1: "Actif", 0: "Banni", 2: "Supprimé", 3: "En vérification" };
 const banActionId   = ref(null);
 const banError      = ref("");
+const banSuccess    = ref("");
 
 const adminStats         = ref(null);
 const loadingStats       = ref(false);
@@ -214,13 +215,15 @@ async function handleBan(id) {
   if (banActionId.value === id) return;
   banActionId.value = id;
   banError.value = "";
+  banSuccess.value = "";
   try {
     const res = await banUser(id, token);
     const u = adminUsers.value.find(u => u.id === id);
     if (u) u.status = res.status;
+    banSuccess.value = "Utilisateur banni avec succès.";
+    setTimeout(() => { banSuccess.value = ""; }, 5000);
   } catch (e) {
-    banError.value = e.message;
-    setTimeout(() => { banError.value = ""; }, 4000);
+    banError.value = e.message || "Erreur lors du bannissement. Vérifiez votre connexion.";
   } finally {
     banActionId.value = null;
   }
@@ -229,13 +232,15 @@ async function handleBan(id) {
 async function handleUnban(id) {
   banActionId.value = id;
   banError.value = "";
+  banSuccess.value = "";
   try {
     const res = await unbanUser(id, token);
     const u = adminUsers.value.find(u => u.id === id);
     if (u) u.status = res.status;
+    banSuccess.value = "Utilisateur débanni avec succès. Il peut désormais se reconnecter.";
+    setTimeout(() => { banSuccess.value = ""; }, 6000);
   } catch (e) {
-    banError.value = e.message;
-    setTimeout(() => { banError.value = ""; }, 4000);
+    banError.value = e.message || "Erreur lors du débannissement. Vérifiez votre connexion.";
   } finally {
     banActionId.value = null;
   }
@@ -444,6 +449,9 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
             </div>
 
             <template v-else>
+              <div v-if="banSuccess" class="ban-success">
+                <i class="fas fa-check-circle"></i> {{ banSuccess }}
+              </div>
               <div v-if="banError" class="ban-error">
                 <i class="fas fa-exclamation-circle"></i> {{ banError }}
               </div>
@@ -738,8 +746,8 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
         </div>
 
         <!-- GRILLE -->
-        <div v-else class="grid">
-          <div v-for="a in filtered" :key="a.id" class="card">
+        <TransitionGroup v-else name="cards" tag="div" class="grid">
+          <div v-for="(a, i) in filtered" :key="a.id" class="card" :style="{ animationDelay: i * 55 + 'ms' }">
 
             <!-- IMAGE -->
             <div class="card-img-wrap">
@@ -780,7 +788,7 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
             </div>
 
           </div>
-        </div>
+        </TransitionGroup>
 
         </template><!-- fin v-if="!adminView" -->
 
@@ -970,7 +978,6 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
   cursor: pointer;
   font-size: 14px;
   color: #555;
-  transition: background 0.2s, color 0.2s;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1176,13 +1183,9 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
-}
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
 }
 
 .card-img-wrap {
@@ -1195,9 +1198,7 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.35s;
 }
-.card:hover .card-img-wrap img { transform: scale(1.05); }
 
 .no-img {
   width: 100%;
@@ -1454,12 +1455,28 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
 }
 .credit-val i { color: #f59e0b; }
 
-.ban-error {
-  background: #fee2e2;
-  color: #dc2626;
+.ban-success {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #86efac;
   border-radius: 8px;
   padding: 10px 16px;
   font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ban-error {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
@@ -1726,6 +1743,126 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+/* =============================================
+   ANIMATIONS
+   ============================================= */
+
+/* --- Cartes en cascade (TransitionGroup "cards") --- */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cards-enter-active {
+  animation: cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cards-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  position: absolute;
+}
+.cards-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.cards-move {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Sidebar sections --- */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.sidebar-section {
+  animation: slideInLeft 0.35s ease both;
+}
+.sidebar .sidebar-section:nth-child(1) { animation-delay: 0.05s; }
+.sidebar .sidebar-section:nth-child(2) { animation-delay: 0.12s; }
+.sidebar .sidebar-section:nth-child(3) { animation-delay: 0.19s; }
+.sidebar .sidebar-section:nth-child(4) { animation-delay: 0.26s; }
+
+/* --- Barre de recherche --- */
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.search-block {
+  animation: slideInDown 0.35s ease both;
+  animation-delay: 0.1s;
+  opacity: 0;
+  animation-fill-mode: both;
+}
+
+/* --- En-tête listing --- */
+.listing-header {
+  animation: slideInDown 0.3s ease both;
+  animation-delay: 0.05s;
+  opacity: 0;
+  animation-fill-mode: both;
+}
+
+/* --- Panneaux admin --- */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-panel {
+  animation: panelIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* --- Bloc récupérations en attente --- */
+@keyframes slideInGreen {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.pending-block {
+  animation: slideInGreen 0.38s ease both;
+}
+
+/* --- Hover carte amélioré --- */
+.card {
+  will-change: transform;
+}
+.card:hover {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: 0 16px 36px rgba(0, 84, 166, 0.13);
+}
+.card-img-wrap img {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card:hover .card-img-wrap img {
+  transform: scale(1.08);
+}
+
+/* --- Hover catégories sidebar --- */
+.cat-item {
+  transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+.cat-item:hover {
+  transform: translateX(4px);
+}
+
+/* --- Bouton "Voir l'article" pulse au hover --- */
+@keyframes btnPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 84, 166, 0.3); }
+  70%  { box-shadow: 0 0 0 7px rgba(0, 84, 166, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 84, 166, 0); }
+}
+
+.card-btn:hover {
+  animation: btnPulse 0.6s ease;
 }
 
 /* === RESPONSIVE === */

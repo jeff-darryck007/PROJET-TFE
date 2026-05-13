@@ -3,7 +3,7 @@
     <DarkToggle />
 
     <!-- PANNEAU GAUCHE : branding -->
-    <div class="left-panel">
+    <div class="left-panel pg-slide-left">
       <div class="brand">
         <div class="brand-icon">
           <i class="fas fa-hands-helping"></i>
@@ -46,7 +46,7 @@
 
     <!-- PANNEAU DROIT : formulaire -->
     <div class="right-panel">
-      <div class="form-card">
+      <div class="form-card pg-slide-up pg-delay-2">
 
         <div class="form-header">
           <h2>Bienvenue !</h2>

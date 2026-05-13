@@ -93,7 +93,7 @@ async function submitArticle() {
     <Navbar />
 
     <div class="form-wrapper">
-      <div class="card">
+      <div class="card pg-slide-up">
         <h2><i class="fas fa-plus-circle"></i> Publier une annonce</h2>
 
         <!-- SUCCÈS -->

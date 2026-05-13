@@ -3,7 +3,7 @@
     <DarkToggle />
 
     <!-- PANNEAU GAUCHE -->
-    <div class="left-panel">
+    <div class="left-panel pg-slide-left">
       <div class="brand" @click="goToLogin">
         <div class="brand-icon">
           <i class="fas fa-hands-helping"></i>
@@ -57,7 +57,7 @@
     </div>
 
     <!-- PANNEAU DROIT -->
-    <div class="right-panel">
+    <div class="right-panel pg-slide-right pg-delay-1">
 
       <!-- ÉTAPE 1 : Email -->
       <div v-if="currentStep === 1" class="form-card">

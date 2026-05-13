@@ -145,3 +145,10 @@ export async function fetchAdminUsers(token) {
     throw new Error(msg || "Erreur lors de la récupération des utilisateurs");
   }
 }
+
+
+
+// verification avec le mail 
+//temps de publication des articles 
+//clique sur le nom dans la discussion pour l'annonce
+//recuperation et confirmation et pour prendres une autre annonce je dire si j'ai pris ou pas (5)

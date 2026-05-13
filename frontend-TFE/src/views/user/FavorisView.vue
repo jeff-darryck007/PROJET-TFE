@@ -69,7 +69,7 @@ async function removeFavorite(id) {
     <Navbar />
 
     <div class="content-wrapper">
-      <div class="panel">
+      <div class="panel pg-slide-up">
         <h2><i class="fas fa-heart"></i> Mes Favoris</h2>
 
         <!-- CHARGEMENT -->

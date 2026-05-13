@@ -232,7 +232,7 @@ async function handleDelete() {
         <div class="detail-layout">
 
           <!-- COLONNE GAUCHE : galerie + infos -->
-          <div class="col-main">
+          <div class="col-main pg-slide-left">
 
             <!-- GALERIE -->
             <div class="gallery">
@@ -281,7 +281,7 @@ async function handleDelete() {
           </div>
 
           <!-- COLONNE DROITE : actions -->
-          <div class="col-side">
+          <div class="col-side pg-slide-right pg-delay-2">
 
             <!-- TITRE + STATUT -->
             <div class="card-section info-card">

@@ -297,7 +297,7 @@ const menuItems = [
     <div class="main-layout">
 
       <!-- SIDEBAR -->
-      <aside class="sidebar">
+      <aside class="sidebar pg-slide-left">
         <div v-for="group in menuItems" :key="group.section" class="sidebar-section">
           <p class="section-label">{{ group.section }}</p>
           <ul class="menu-list">
@@ -326,7 +326,7 @@ const menuItems = [
       </aside>
 
       <!-- CONTENU -->
-      <main class="content-area">
+      <main class="content-area pg-slide-right pg-delay-1">
 
         <!-- CHARGEMENT -->
         <div v-if="loading" class="content-card state-box">

@@ -1,0 +1,112 @@
+/* ================================================
+   ANIMATIONS GLOBALES — PartageGratuit
+   ================================================ */
+
+/* --- Keyframes --- */
+
+@keyframes pg-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pg-slideUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pg-slideDown {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pg-slideLeft {
+  from { opacity: 0; transform: translateX(-22px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pg-slideRight {
+  from { opacity: 0; transform: translateX(22px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pg-scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pg-cardIn {
+  from { opacity: 0; transform: translateY(26px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+@keyframes pg-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(0, 84, 166, 0.35); }
+  70%  { box-shadow: 0 0 0 9px rgba(0, 84, 166, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(0, 84, 166, 0); }
+}
+
+/* --- Transition de page (router-view) --- */
+
+.page-enter-active {
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.page-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* --- Classes utilitaires --- */
+
+.pg-fade-in {
+  animation: pg-fadeIn 0.4s ease both;
+}
+
+.pg-slide-up {
+  animation: pg-slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pg-slide-down {
+  animation: pg-slideDown 0.35s ease both;
+}
+
+.pg-slide-left {
+  animation: pg-slideLeft 0.35s ease both;
+}
+
+.pg-slide-right {
+  animation: pg-slideRight 0.35s ease both;
+}
+
+.pg-scale-in {
+  animation: pg-scaleIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pg-card-in {
+  animation: pg-cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Délais échelonnés */
+.pg-delay-1 { animation-delay: 0.05s; }
+.pg-delay-2 { animation-delay: 0.10s; }
+.pg-delay-3 { animation-delay: 0.16s; }
+.pg-delay-4 { animation-delay: 0.22s; }
+.pg-delay-5 { animation-delay: 0.28s; }
+.pg-delay-6 { animation-delay: 0.34s; }
+
+/* --- Hover utilitaires --- */
+
+.pg-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.25s ease;
+}
+.pg-hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 32px rgba(0, 84, 166, 0.12);
+}

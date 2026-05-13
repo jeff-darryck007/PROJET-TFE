@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Anouncement;
 use App\Entity\Comment;
+use App\Entity\Notification;
 use App\Entity\Users;
 use App\Repository\AnouncementRepository;
 use App\Repository\CommentRepository;
@@ -224,6 +225,18 @@ final class AdminController extends AbstractController
         }
 
         $target->setStatus(1);
+        $em->persist($target);
+        $em->flush();
+
+        // Notifier l'utilisateur qu'il peut se reconnecter
+        $notif = new Notification();
+        $notif->setText('✅ Votre compte a été réactivé par l\'administrateur. Vous pouvez vous reconnecter.');
+        $notif->setType('status-update');
+        $notif->setIsRead(false);
+        $notif->setCreateAt(new \DateTime());
+        $notif->setUser($target);
+        $notif->setAnouncement(null);
+        $em->persist($notif);
         $em->flush();
 
         return $this->json(['message' => 'Utilisateur débanni', 'status' => 1]);

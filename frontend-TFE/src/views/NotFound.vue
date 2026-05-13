@@ -1,7 +1,7 @@
 <template>
   <div class="notfound-page">
 
-    <div class="notfound-card">
+    <div class="notfound-card pg-scale-in">
 
       <!-- Illustration 404 -->
       <div class="illustration">

@@ -177,7 +177,7 @@ function isSelectedConvo(convo) {
     <div class="layout">
 
       <!-- SIDEBAR -->
-      <aside class="sidebar">
+      <aside class="sidebar pg-slide-left">
         <div class="sidebar-header">
           <i class="fas fa-comments"></i>
           <span>Mes conversations</span>
@@ -211,7 +211,7 @@ function isSelectedConvo(convo) {
       </aside>
 
       <!-- ZONE CHAT -->
-      <main class="chat-area">
+      <main class="chat-area pg-fade-in">
 
         <!-- RIEN DE SÉLECTIONNÉ -->
         <div v-if="!selected" class="chat-empty">

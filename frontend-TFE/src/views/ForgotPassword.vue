@@ -368,6 +368,10 @@ async function handleResetPassword() {
     errorMessage.value = "Le mot de passe doit contenir au moins 8 caractères."
     return
   }
+  if (!/[A-Za-z]/.test(newPassword.value) || !/[0-9]/.test(newPassword.value)) {
+    errorMessage.value = "Le mot de passe doit contenir au moins une lettre et un chiffre."
+    return
+  }
   if (newPassword.value !== confirmPassword.value) {
     errorMessage.value = "Les mots de passe ne correspondent pas."
     return
@@ -387,14 +391,13 @@ async function handleResetPassword() {
     if (!res.ok) {
       errorMessage.value = data.error || "Une erreur est survenue."
       if (data.error && data.error.includes("expiré")) {
-        // Code expired → restart from step 1
         currentStep.value = 1
         code.value = ""
-      } else {
-        // Wrong code → back to step 2
+      } else if (data.error && data.error.includes("invalide")) {
         currentStep.value = 2
         startCountdown()
       }
+      // erreur de format de mot de passe → rester à l'étape 3
       return
     }
     currentStep.value = 4

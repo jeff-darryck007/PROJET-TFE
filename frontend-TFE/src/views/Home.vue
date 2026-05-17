@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navbar from "./Navbar.vue";
 import Footer from "./Footer.vue";
-import { fetchAnouncements, fetchPendingRecoveries, validateRecovery } from "../controller/controllerAnouncement.js";
+import { fetchAnouncements, fetchPendingRecoveries, validateRecovery, fetchPendingAdminAnouncements, approveAnouncement, rejectAnouncement, fetchAllAdminAnouncements, deleteAnouncement } from "../controller/controllerAnouncement.js";
 import { toggleFavorite, fetchLikedIds } from "../controller/controllerFavorite.js";
 import { fetchReportedComments, deleteAdminComment } from "../controller/controllerComment.js";
 import { fetchUserProfile, fetchAdminUsers, fetchAdminStats, banUser, unbanUser } from "../controller/controllerLogin.js";
@@ -36,7 +36,7 @@ const adminView         = ref("");
 const adminUsers        = ref([]);
 const loadingAdmin      = ref(false);
 
-const STATUS_LABEL = { 1: "Disponible", 2: "Réservé", 3: "Donné" };
+const STATUS_LABEL = { 0: "En attente", 1: "Disponible", 2: "Réservé", 3: "Donné" };
 
 const CATEGORY_ICONS = {
   "Meubles":       "fas fa-couch",
@@ -64,14 +64,18 @@ onMounted(async () => {
 
   if (token) {
     try {
-      const [ids, pending, profile] = await Promise.all([
+      const requests = [
         fetchLikedIds(token),
         fetchPendingRecoveries(token),
         fetchUserProfile(token),
-      ]);
-      likedIds.value = new Set(ids);
-      pendingRecoveries.value = pending.data ?? [];
-      userCredit.value = profile.credit ?? 0;
+      ];
+      if (isAdmin) requests.push(fetchPendingAdminAnouncements(token));
+
+      const results = await Promise.all(requests);
+      likedIds.value = new Set(results[0]);
+      pendingRecoveries.value = results[1].data ?? [];
+      userCredit.value = results[2].credit ?? 0;
+      if (isAdmin) pendingAdminAnouncements.value = results[3]?.data ?? [];
     } catch { /* silencieux */ }
   }
 });
@@ -211,6 +215,19 @@ const loadingComments    = ref(false);
 const deletingCommentId  = ref(null);
 const commentAdminError  = ref("");
 
+const pendingAdminAnouncements   = ref([]);
+const loadingAdminAnouncements   = ref(false);
+const approvingId                = ref(null);
+const rejectingId                = ref(null);
+const adminAnouncementsError     = ref("");
+const adminAnouncementsSuccess   = ref("");
+
+const allAdminAnouncements       = ref([]);
+const loadingAllAdmin            = ref(false);
+const deletingAdminId            = ref(null);
+const gestionError               = ref("");
+const gestionSuccess             = ref("");
+
 async function handleBan(id) {
   if (banActionId.value === id) return;
   banActionId.value = id;
@@ -272,6 +289,75 @@ function logout() {
 }
 
 function doSearch() { /* le computed se met à jour automatiquement */ }
+
+async function openAdminAnouncements() {
+  adminView.value = "annonces";
+  if (pendingAdminAnouncements.value.length > 0) return;
+  loadingAdminAnouncements.value = true;
+  try {
+    const data = await fetchPendingAdminAnouncements(token);
+    pendingAdminAnouncements.value = data.data ?? [];
+  } catch { /* silencieux */ }
+  finally { loadingAdminAnouncements.value = false; }
+}
+
+async function handleApprove(id) {
+  approvingId.value = id;
+  adminAnouncementsError.value = "";
+  try {
+    await approveAnouncement(id, token);
+    pendingAdminAnouncements.value = pendingAdminAnouncements.value.filter(a => a.id !== id);
+    adminAnouncementsSuccess.value = "Annonce approuvée et publiée avec succès.";
+    setTimeout(() => { adminAnouncementsSuccess.value = ""; }, 4000);
+  } catch (e) {
+    adminAnouncementsError.value = e.message;
+    setTimeout(() => { adminAnouncementsError.value = ""; }, 4000);
+  } finally {
+    approvingId.value = null;
+  }
+}
+
+async function handleReject(id) {
+  rejectingId.value = id;
+  adminAnouncementsError.value = "";
+  try {
+    await rejectAnouncement(id, token);
+    pendingAdminAnouncements.value = pendingAdminAnouncements.value.filter(a => a.id !== id);
+    adminAnouncementsSuccess.value = "Annonce rejetée.";
+    setTimeout(() => { adminAnouncementsSuccess.value = ""; }, 4000);
+  } catch (e) {
+    adminAnouncementsError.value = e.message;
+    setTimeout(() => { adminAnouncementsError.value = ""; }, 4000);
+  } finally {
+    rejectingId.value = null;
+  }
+}
+
+async function openAdminGestion() {
+  adminView.value = "gestion";
+  loadingAllAdmin.value = true;
+  try {
+    const data = await fetchAllAdminAnouncements(token);
+    allAdminAnouncements.value = data.data ?? [];
+  } catch { /* silencieux */ }
+  finally { loadingAllAdmin.value = false; }
+}
+
+async function handleAdminDelete(id) {
+  deletingAdminId.value = id;
+  gestionError.value = "";
+  try {
+    await deleteAnouncement(id, token);
+    allAdminAnouncements.value = allAdminAnouncements.value.filter(a => a.id !== id);
+    gestionSuccess.value = "Annonce supprimée.";
+    setTimeout(() => { gestionSuccess.value = ""; }, 4000);
+  } catch (e) {
+    gestionError.value = e.message;
+    setTimeout(() => { gestionError.value = ""; }, 4000);
+  } finally {
+    deletingAdminId.value = null;
+  }
+}
 </script>
 
 <template>
@@ -357,8 +443,12 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
             <li class="action-item" :class="{ 'admin-active': adminView === 'users' }" @click="openAdminUsers">
               <i class="fas fa-users-cog"></i> Utilisateurs
             </li>
-            <li class="action-item" :class="{ 'admin-active': adminView === '' }" @click="adminView = ''">
-              <i class="fas fa-bullhorn"></i> Annonces
+            <li class="action-item" :class="{ 'admin-active': adminView === 'annonces' }" @click="openAdminAnouncements">
+              <i class="fas fa-clock"></i> Validation
+              <span v-if="pendingAdminAnouncements.length > 0" class="admin-badge-count">{{ pendingAdminAnouncements.length }}</span>
+            </li>
+            <li class="action-item" :class="{ 'admin-active': adminView === 'gestion' }" @click="openAdminGestion">
+              <i class="fas fa-list-alt"></i> Gestion des annonces
             </li>
             <li class="action-item" :class="{ 'admin-active': adminView === 'comments' }" @click="openAdminComments">
               <i class="fas fa-comments"></i> Commentaires
@@ -519,6 +609,152 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
                           </button>
                         </template>
                         <span v-else class="td-admin-label"><i class="fas fa-shield-alt"></i> Admin</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- VUE ADMIN : ANNONCES EN ATTENTE DE VALIDATION -->
+        <template v-if="isAdmin && adminView === 'annonces'">
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h2><i class="fas fa-clock"></i> Annonces en attente de validation</h2>
+              <button class="btn-close-admin" @click="adminView = ''">
+                <i class="fas fa-times"></i> Fermer
+              </button>
+            </div>
+
+            <div v-if="loadingAdminAnouncements" class="state-box">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Chargement...</p>
+            </div>
+
+            <template v-else>
+              <div v-if="adminAnouncementsSuccess" class="ban-success">
+                <i class="fas fa-check-circle"></i> {{ adminAnouncementsSuccess }}
+              </div>
+              <div v-if="adminAnouncementsError" class="ban-error">
+                <i class="fas fa-exclamation-circle"></i> {{ adminAnouncementsError }}
+              </div>
+
+              <div v-if="pendingAdminAnouncements.length === 0" class="state-box">
+                <i class="fas fa-check-circle" style="color:#16a34a"></i>
+                <p>Aucune annonce en attente de validation.</p>
+              </div>
+
+              <div v-else class="pending-admin-list">
+                <div v-for="a in pendingAdminAnouncements" :key="a.id" class="pending-admin-card">
+                  <div class="pending-admin-img">
+                    <img v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
+                    <div v-else class="pending-admin-no-img"><i class="fas fa-image"></i></div>
+                  </div>
+                  <div class="pending-admin-info">
+                    <span class="pending-admin-cat">{{ a.categorie }}</span>
+                    <p class="pending-admin-title">{{ a.title }}</p>
+                    <p class="pending-admin-meta">
+                      <i class="fas fa-user"></i> {{ a.donorName }}
+                      &nbsp;·&nbsp;
+                      <i class="fas fa-map-marker-alt"></i> {{ a.adress }}
+                      &nbsp;·&nbsp;
+                      <i class="fas fa-calendar-alt"></i> {{ formatDate(a.createAt) }}
+                    </p>
+                    <p class="pending-admin-desc">{{ (a.description ?? '').substring(0, 120) }}{{ (a.description ?? '').length > 120 ? '...' : '' }}</p>
+                  </div>
+                  <div class="pending-admin-actions">
+                    <button
+                      class="btn-approve"
+                      :disabled="approvingId === a.id || rejectingId === a.id"
+                      @click="handleApprove(a.id)"
+                    >
+                      <i :class="approvingId === a.id ? 'fas fa-spinner fa-spin' : 'fas fa-check'"></i>
+                      {{ approvingId === a.id ? 'En cours...' : 'Approuver' }}
+                    </button>
+                    <button
+                      class="btn-reject"
+                      :disabled="approvingId === a.id || rejectingId === a.id"
+                      @click="handleReject(a.id)"
+                    >
+                      <i :class="rejectingId === a.id ? 'fas fa-spinner fa-spin' : 'fas fa-times'"></i>
+                      {{ rejectingId === a.id ? 'En cours...' : 'Rejeter' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- VUE ADMIN : GESTION DES ANNONCES -->
+        <template v-if="isAdmin && adminView === 'gestion'">
+          <div class="admin-panel">
+            <div class="admin-panel-header">
+              <h2><i class="fas fa-list-alt"></i> Gestion des annonces</h2>
+              <button class="btn-close-admin" @click="adminView = ''">
+                <i class="fas fa-times"></i> Fermer
+              </button>
+            </div>
+
+            <div v-if="loadingAllAdmin" class="state-box">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Chargement...</p>
+            </div>
+
+            <template v-else>
+              <div v-if="gestionSuccess" class="ban-success">
+                <i class="fas fa-check-circle"></i> {{ gestionSuccess }}
+              </div>
+              <div v-if="gestionError" class="ban-error">
+                <i class="fas fa-exclamation-circle"></i> {{ gestionError }}
+              </div>
+
+              <div v-if="allAdminAnouncements.length === 0" class="state-box">
+                <i class="fas fa-box-open"></i>
+                <p>Aucune annonce trouvée.</p>
+              </div>
+
+              <div v-else class="admin-users-table-wrap">
+                <table class="admin-users-table">
+                  <thead>
+                    <tr>
+                      <th>Photo</th>
+                      <th>Titre</th>
+                      <th>Catégorie</th>
+                      <th>Statut</th>
+                      <th>Auteur</th>
+                      <th>Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="a in allAdminAnouncements" :key="a.id">
+                      <td>
+                        <div class="gestion-thumb">
+                          <img v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
+                          <i v-else class="fas fa-image"></i>
+                        </div>
+                      </td>
+                      <td class="gestion-title">{{ a.title }}</td>
+                      <td><span class="role-chip">{{ a.categorie }}</span></td>
+                      <td>
+                        <span class="status-chip" :class="`status-annonce-${a.status}`">
+                          {{ STATUS_LABEL[a.status] ?? '—' }}
+                        </span>
+                      </td>
+                      <td>{{ a.donorName }}</td>
+                      <td>{{ formatDate(a.createAt) }}</td>
+                      <td>
+                        <button
+                          class="btn-delete-comment"
+                          :disabled="deletingAdminId === a.id"
+                          @click="handleAdminDelete(a.id)"
+                        >
+                          <i :class="deletingAdminId === a.id ? 'fas fa-spinner fa-spin' : 'fas fa-trash-alt'"></i>
+                          {{ deletingAdminId === a.id ? '...' : 'Supprimer' }}
+                        </button>
                       </td>
                     </tr>
                   </tbody>
@@ -1663,6 +1899,145 @@ function doSearch() { /* le computed se met à jour automatiquement */ }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-row  { grid-template-columns: 1fr; }
 }
+
+/* === GESTION DES ANNONCES (tableau admin) === */
+.gestion-thumb {
+  width: 48px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
+  font-size: 18px;
+}
+.gestion-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gestion-title { font-weight: 600; color: #222; max-width: 200px; }
+
+.status-annonce-0 { background: #fef3c7; color: #d97706; }
+.status-annonce-1 { background: #dcfce7; color: #16a34a; }
+.status-annonce-2 { background: #fef9c3; color: #ca8a04; }
+.status-annonce-3 { background: #f3f4f6; color: #6b7280; }
+
+/* === BADGE ANNONCES EN ATTENTE (sidebar) === */
+.admin-badge-count {
+  margin-left: auto;
+  background: #d97706;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+
+/* === ANNONCES EN ATTENTE (ADMIN) === */
+.pending-admin-list { display: flex; flex-direction: column; gap: 14px; }
+
+.pending-admin-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: 12px;
+  padding: 16px;
+  flex-wrap: wrap;
+}
+
+.pending-admin-img {
+  width: 90px;
+  height: 76px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #fef3c7;
+}
+.pending-admin-img img { width: 100%; height: 100%; object-fit: cover; }
+.pending-admin-no-img {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  font-size: 28px;
+}
+
+.pending-admin-info { flex: 1; min-width: 200px; }
+.pending-admin-cat {
+  display: inline-block;
+  background: #fef3c7;
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.pending-admin-title { font-size: 16px; font-weight: 700; color: #222; margin: 0 0 4px; }
+.pending-admin-meta {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pending-admin-meta i { color: #d97706; }
+.pending-admin-desc { font-size: 13px; color: #555; margin: 0; line-height: 1.5; }
+
+.pending-admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.btn-approve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 18px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.btn-approve:hover:not(:disabled) { background: #15803d; }
+.btn-approve:disabled { background: #86efac; cursor: not-allowed; }
+
+.btn-reject {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 18px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-reject:hover:not(:disabled) { background: #dc2626; color: white; }
+.btn-reject:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* COMMENTAIRES SIGNALÉS */
 .reported-list { display: flex; flex-direction: column; gap: 14px; }

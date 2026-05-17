@@ -132,3 +132,51 @@ export async function deleteAnouncement(id, token) {
     throw new Error(msg || "Erreur lors de la suppression");
   }
 }
+
+export async function fetchAllAdminAnouncements(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/admin/anouncements/all`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la récupération des annonces");
+  }
+}
+
+export async function fetchPendingAdminAnouncements(token) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/admin/anouncements/pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de la récupération des annonces en attente");
+  }
+}
+
+export async function approveAnouncement(id, token) {
+  try {
+    const response = await axios.patch(`${BASE_URL}/api/admin/anouncement/${id}/approve`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de l'approbation");
+  }
+}
+
+export async function rejectAnouncement(id, token) {
+  try {
+    const response = await axios.delete(`${BASE_URL}/api/admin/anouncement/${id}/reject`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors du rejet");
+  }
+}

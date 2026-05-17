@@ -28,7 +28,7 @@ const myAnouncements     = ref([]);
 const loadingAnouncements = ref(false);
 const confirmDelId        = ref(null);
 
-const STATUS_LABEL = { 1: "Disponible", 2: "Réservé", 3: "Donné" };
+const STATUS_LABEL = { 0: "En attente", 1: "Disponible", 2: "Réservé", 3: "Donné", 4: "Refusée" };
 const helpTab = ref("visiteur");
 
 const recoveredArticles      = ref([]);
@@ -1303,9 +1303,11 @@ const menuItems = [
   border-radius: 20px;
   text-transform: uppercase;
 }
+.badge-0 { background: #fef3c7; color: #d97706; }
 .badge-1 { background: #dcfce7; color: #16a34a; }
 .badge-2 { background: #fef9c3; color: #ca8a04; }
 .badge-3 { background: #fee2e2; color: #dc2626; }
+.badge-4 { background: #fce7f3; color: #be185d; }
 
 .my-card-body { padding: 10px 12px 6px; }
 

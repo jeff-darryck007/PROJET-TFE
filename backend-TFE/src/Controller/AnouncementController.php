@@ -66,7 +66,8 @@ final class AnouncementController extends AbstractController
         $anouncement->setPostX($postX !== null ? (float) $postX : 0.0);
         $anouncement->setPostY($postY !== null ? (float) $postY : 0.0);
         $anouncement->setPostZ($postZ !== null ? (float) $postZ : 0.0);
-        $anouncement->setStatus(1);
+        $isAdmin = in_array('admin', $user->getRoles());
+        $anouncement->setStatus($isAdmin ? 1 : 0);
         $anouncement->setCreateAt(new \DateTime());
         $anouncement->setPictures(json_encode($picturesPaths));
         $anouncement->setUser($user);
@@ -74,31 +75,36 @@ final class AnouncementController extends AbstractController
         $em->persist($anouncement);
         $em->flush();
 
-        // Notifier tous les utilisateurs actifs (sauf le publieur)
-        $allUsers = $usersRepo->findBy(['status' => 1]);
-        foreach ($allUsers as $recipient) {
-            if ($recipient->getId() === $user->getId()) {
-                continue;
+        // Notifier uniquement si l'annonce est directement visible (admin publie → status 1)
+        if ($isAdmin) {
+            $allUsers = $usersRepo->findBy(['status' => 1]);
+            foreach ($allUsers as $recipient) {
+                if ($recipient->getId() === $user->getId()) {
+                    continue;
+                }
+                $notif = new Notification();
+                $notif->setText(sprintf(
+                    'Nouvelle annonce : "%s" publiée par %s %s.',
+                    $anouncement->getTitle(),
+                    $user->getName(),
+                    $user->getSurname()
+                ));
+                $notif->setType('new-article');
+                $notif->setIsRead(false);
+                $notif->setCreateAt(new \DateTime());
+                $notif->setUser($recipient);
+                $notif->setAnouncement($anouncement);
+                $em->persist($notif);
             }
-            $notif = new Notification();
-            $notif->setText(sprintf(
-                'Nouvelle annonce : "%s" publiée par %s %s.',
-                $anouncement->getTitle(),
-                $user->getName(),
-                $user->getSurname()
-            ));
-            $notif->setType('new-article');
-            $notif->setIsRead(false);
-            $notif->setCreateAt(new \DateTime());
-            $notif->setUser($recipient);
-            $notif->setAnouncement($anouncement);
-            $em->persist($notif);
+            $em->flush();
         }
-        $em->flush();
 
         return $this->json([
-            'message' => 'Annonce créée avec succès',
-            'id' => $anouncement->getId(),
+            'message' => $isAdmin
+                ? 'Annonce créée avec succès'
+                : 'Annonce soumise. Elle sera visible après validation par un administrateur.',
+            'id'     => $anouncement->getId(),
+            'status' => $isAdmin ? 1 : 0,
         ], 201);
     }
 
@@ -142,6 +148,7 @@ final class AnouncementController extends AbstractController
     {
         $anouncements = $repo->createQueryBuilder('a')
             ->where('a.categorie != :cat')
+            ->andWhere('a.status IN (1, 2)')
             ->setParameter('cat', '__contact__')
             ->orderBy('a.createAt', 'DESC')
             ->getQuery()
@@ -168,12 +175,20 @@ final class AnouncementController extends AbstractController
 
     // DÉTAIL D'UNE ANNONCE
     #[Route('/anouncement/{id}', name: 'show', methods: ['GET'])]
-    public function show(int $id, AnouncementRepository $repo): JsonResponse
+    public function show(int $id, AnouncementRepository $repo, #[CurrentUser] ?Users $user): JsonResponse
     {
         $a = $repo->find($id);
 
         if (!$a || $a->getCategorie() === '__contact__') {
             return $this->json(['error' => 'Annonce introuvable'], 404);
+        }
+
+        if ($a->getStatus() === 0) {
+            $isAdmin = $user && in_array('admin', $user->getRoles());
+            $isOwner = $user && $a->getUser()?->getId() === $user->getId();
+            if (!$isAdmin && !$isOwner) {
+                return $this->json(['error' => 'Annonce introuvable'], 404);
+            }
         }
 
         return $this->json([
@@ -421,6 +436,156 @@ final class AnouncementController extends AbstractController
         ]);
     }
 
+    // TOUTES LES ANNONCES (admin) — gestion complète
+    #[Route('/admin/anouncements/all', name: 'admin_all', methods: ['GET'])]
+    public function adminAll(
+        AnouncementRepository $repo,
+        #[CurrentUser] ?Users $user
+    ): JsonResponse {
+        if (!$user || !in_array('admin', $user->getRoles())) {
+            return $this->json(['error' => 'Accès refusé'], 403);
+        }
+
+        $anouncements = $repo->createQueryBuilder('a')
+            ->where('a.categorie != :cat')
+            ->andWhere('a.status IN (1, 2, 3)')
+            ->setParameter('cat', '__contact__')
+            ->orderBy('a.createAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $data = array_map(fn(Anouncement $a) => [
+            'id'        => $a->getId(),
+            'title'     => $a->getTitle(),
+            'categorie' => $a->getCategorie(),
+            'adress'    => $a->getAdress(),
+            'status'    => $a->getStatus(),
+            'createAt'  => $a->getCreateAt()?->format('Y-m-d'),
+            'pictures'  => json_decode($a->getPictures() ?? '[]', true),
+            'donorName' => $a->getUser()?->getName() . ' ' . $a->getUser()?->getSurname(),
+        ], $anouncements);
+
+        return $this->json(['data' => $data]);
+    }
+
+    // LISTE DES ANNONCES EN ATTENTE DE VALIDATION (admin)
+    #[Route('/admin/anouncements/pending', name: 'admin_pending', methods: ['GET'])]
+    public function pendingAdmin(
+        AnouncementRepository $repo,
+        #[CurrentUser] ?Users $user
+    ): JsonResponse {
+        if (!$user || !in_array('admin', $user->getRoles())) {
+            return $this->json(['error' => 'Accès refusé'], 403);
+        }
+
+        $anouncements = $repo->createQueryBuilder('a')
+            ->where('a.status = 0')
+            ->andWhere('a.categorie != :cat')
+            ->setParameter('cat', '__contact__')
+            ->orderBy('a.createAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $data = array_map(fn(Anouncement $a) => [
+            'id'          => $a->getId(),
+            'title'       => $a->getTitle(),
+            'categorie'   => $a->getCategorie(),
+            'description' => $a->getDescription(),
+            'adress'      => $a->getAdress(),
+            'createAt'    => $a->getCreateAt()?->format('Y-m-d H:i'),
+            'pictures'    => json_decode($a->getPictures() ?? '[]', true),
+            'donorName'   => $a->getUser()?->getName() . ' ' . $a->getUser()?->getSurname(),
+            'userId'      => $a->getUser()?->getId(),
+        ], $anouncements);
+
+        return $this->json(['data' => $data]);
+    }
+
+    // APPROUVER UNE ANNONCE (admin) → status 1 + notifications
+    #[Route('/admin/anouncement/{id}/approve', name: 'admin_approve', methods: ['PATCH'])]
+    public function approve(
+        int $id,
+        AnouncementRepository $repo,
+        UsersRepository $usersRepo,
+        EntityManagerInterface $em,
+        #[CurrentUser] ?Users $user
+    ): JsonResponse {
+        if (!$user || !in_array('admin', $user->getRoles())) {
+            return $this->json(['error' => 'Accès refusé'], 403);
+        }
+
+        $anouncement = $repo->find($id);
+        if (!$anouncement || $anouncement->getStatus() !== 0) {
+            return $this->json(['error' => 'Annonce introuvable ou déjà traitée'], 404);
+        }
+
+        $anouncement->setStatus(1);
+        $em->flush();
+
+        $donor = $anouncement->getUser();
+        $allUsers = $usersRepo->findBy(['status' => 1]);
+        foreach ($allUsers as $recipient) {
+            if ($recipient->getId() === $donor?->getId()) {
+                continue;
+            }
+            $notif = new Notification();
+            $notif->setText(sprintf(
+                'Nouvelle annonce : "%s" publiée par %s %s.',
+                $anouncement->getTitle(),
+                $donor?->getName(),
+                $donor?->getSurname()
+            ));
+            $notif->setType('new-article');
+            $notif->setIsRead(false);
+            $notif->setCreateAt(new \DateTime());
+            $notif->setUser($recipient);
+            $notif->setAnouncement($anouncement);
+            $em->persist($notif);
+        }
+        $em->flush();
+
+        return $this->json(['message' => 'Annonce approuvée et publiée avec succès']);
+    }
+
+    // REJETER UNE ANNONCE (admin) → suppression
+    #[Route('/admin/anouncement/{id}/reject', name: 'admin_reject', methods: ['DELETE'])]
+    public function rejectAdmin(
+        int $id,
+        AnouncementRepository $repo,
+        EntityManagerInterface $em,
+        #[CurrentUser] ?Users $user
+    ): JsonResponse {
+        if (!$user || !in_array('admin', $user->getRoles())) {
+            return $this->json(['error' => 'Accès refusé'], 403);
+        }
+
+        $anouncement = $repo->find($id);
+        if (!$anouncement || $anouncement->getStatus() !== 0) {
+            return $this->json(['error' => 'Annonce introuvable ou déjà traitée'], 404);
+        }
+
+        $anouncement->setStatus(4);
+        $em->flush();
+
+        $owner = $anouncement->getUser();
+        if ($owner) {
+            $notif = new Notification();
+            $notif->setText(sprintf(
+                'Votre annonce "%s" a été refusée par un administrateur et ne sera pas publiée.',
+                $anouncement->getTitle()
+            ));
+            $notif->setType('new-article');
+            $notif->setIsRead(false);
+            $notif->setCreateAt(new \DateTime());
+            $notif->setUser($owner);
+            $notif->setAnouncement($anouncement);
+            $em->persist($notif);
+            $em->flush();
+        }
+
+        return $this->json(['message' => 'Annonce refusée']);
+    }
+
     // SUPPRIMER UNE ANNONCE
     #[Route('/anouncement/{id}', name: 'delete', methods: ['DELETE'])]
     public function delete(
@@ -439,9 +604,14 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Annonce non trouvée'], 404);
         }
 
-        if ($anouncement->getUser()?->getId() !== $user->getId()) {
+        $isAdmin = in_array('admin', $user->getRoles());
+        if (!$isAdmin && $anouncement->getUser()?->getId() !== $user->getId()) {
             return $this->json(['error' => 'Action non autorisée'], 403);
         }
+
+        $em->createQuery('DELETE FROM App\Entity\Comment c WHERE c.anouncement = :a')
+            ->setParameter('a', $anouncement)
+            ->execute();
 
         $em->remove($anouncement);
         $em->flush();

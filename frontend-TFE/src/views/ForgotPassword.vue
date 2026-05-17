@@ -127,6 +127,10 @@
             </div>
           </div>
 
+          <div v-if="devCode" class="dev-code-banner">
+            <i class="fas fa-bug"></i> <strong>DEV</strong> — Code : <strong>{{ devCode }}</strong>
+          </div>
+
           <div class="countdown" :class="{ expired: timeLeft === 0 }">
             <i :class="timeLeft > 0 ? 'fas fa-clock' : 'fas fa-exclamation-triangle'"></i>
             <span v-if="timeLeft > 0">
@@ -249,6 +253,7 @@ const goToLogin = () => router.push("/login")
 const currentStep = ref(1)
 const email = ref("")
 const code = ref("")
+const devCode = ref("")
 const newPassword = ref("")
 const confirmPassword = ref("")
 const showNew = ref(false)
@@ -317,6 +322,7 @@ async function handleSendCode() {
       errorMessage.value = data.error || "Une erreur est survenue."
       return
     }
+    devCode.value = data.dev_code || ""
     currentStep.value = 2
     startCountdown()
   } catch {
@@ -653,6 +659,18 @@ async function handleResetPassword() {
   border-radius: 8px;
   margin: 0 0 20px 0;
   word-break: break-all;
+}
+
+/* === DEV BANNER === */
+.dev-code-banner {
+  background: #fffbeb;
+  border: 1px dashed #f59e0b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #92400e;
+  margin-bottom: 12px;
+  text-align: left;
 }
 
 /* === COUNTDOWN === */

@@ -62,10 +62,22 @@ final class FavoriteController extends AbstractController
 
         $ids = $favoriteRepo->findAnouncementIdsByUser($user);
 
-        $anouncements = array_map(
-            fn(int $aid) => $anouncementRepo->find($aid),
-            $ids
-        );
+        // Une seule requête (annonces + donneurs) au lieu d'un find() par favori
+        $byId = [];
+        if ($ids) {
+            $rows = $anouncementRepo->createQueryBuilder('a')
+                ->addSelect('u')
+                ->leftJoin('a.user', 'u')
+                ->where('a.id IN (:ids)')
+                ->setParameter('ids', $ids)
+                ->getQuery()
+                ->getResult();
+            foreach ($rows as $a) {
+                $byId[$a->getId()] = $a;
+            }
+        }
+        // On conserve l'ordre renvoyé par le repository
+        $anouncements = array_map(fn(int $aid) => $byId[$aid] ?? null, $ids);
 
         $result = [];
         foreach ($anouncements as $a) {

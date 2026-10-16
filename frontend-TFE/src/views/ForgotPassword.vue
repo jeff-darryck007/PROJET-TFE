@@ -127,10 +127,6 @@
             </div>
           </div>
 
-          <div v-if="devCode" class="dev-code-banner">
-            <i class="fas fa-bug"></i> <strong>DEV</strong> — Code : <strong>{{ devCode }}</strong>
-          </div>
-
           <div class="countdown" :class="{ expired: timeLeft === 0 }">
             <i :class="timeLeft > 0 ? 'fas fa-clock' : 'fas fa-exclamation-triangle'"></i>
             <span v-if="timeLeft > 0">
@@ -253,7 +249,6 @@ const goToLogin = () => router.push("/login")
 const currentStep = ref(1)
 const email = ref("")
 const code = ref("")
-const devCode = ref("")
 const newPassword = ref("")
 const confirmPassword = ref("")
 const showNew = ref(false)
@@ -263,7 +258,9 @@ const resending = ref(false)
 const errorMessage = ref("")
 
 // --- Countdown ---
-const timeLeft = ref(120)
+// La durée vient du serveur (expiresIn) pour rester synchronisée avec l'expiration réelle du code
+const DEFAULT_CODE_TTL = 600
+const timeLeft = ref(DEFAULT_CODE_TTL)
 let countdownInterval = null
 
 const formattedTime = computed(() => {
@@ -272,9 +269,9 @@ const formattedTime = computed(() => {
   return `${m}:${s.toString().padStart(2, "0")}`
 })
 
-function startCountdown() {
+function startCountdown(seconds = DEFAULT_CODE_TTL) {
   clearInterval(countdownInterval)
-  timeLeft.value = 120
+  timeLeft.value = seconds
   countdownInterval = setInterval(() => {
     if (timeLeft.value > 0) timeLeft.value--
     else clearInterval(countdownInterval)
@@ -322,9 +319,8 @@ async function handleSendCode() {
       errorMessage.value = data.error || "Une erreur est survenue."
       return
     }
-    devCode.value = data.dev_code || ""
     currentStep.value = 2
-    startCountdown()
+    startCountdown(data.expiresIn ?? DEFAULT_CODE_TTL)
   } catch {
     errorMessage.value = "Impossible de contacter le serveur."
   } finally {
@@ -332,15 +328,43 @@ async function handleSendCode() {
   }
 }
 
-// --- ÉTAPE 2 : vérifier le code (format seulement) ---
-function handleVerifyCode() {
+// Erreur liée au code (champ "reason" renvoyé par l'API) :
+// trop d'essais ou code expiré → il faut redemander un code (retour à l'étape 1)
+function handleCodeError(data) {
+  errorMessage.value = data.error || "Une erreur est survenue."
+  if (data.reason === "too_many" || data.reason === "expired") {
+    clearInterval(countdownInterval)
+    currentStep.value = 1
+    code.value = ""
+  }
+}
+
+// --- ÉTAPE 2 : vérifier le code auprès du serveur ---
+async function handleVerifyCode() {
   errorMessage.value = ""
   if (!/^\d{6}$/.test(code.value)) {
     errorMessage.value = "Le code doit contenir exactement 6 chiffres."
     return
   }
-  clearInterval(countdownInterval)
-  currentStep.value = 3
+  loading.value = true
+  try {
+    const res = await fetch(`${API}/verify-reset-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.value, code: code.value })
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      handleCodeError(data)
+      return
+    }
+    clearInterval(countdownInterval)
+    currentStep.value = 3
+  } catch {
+    errorMessage.value = "Impossible de contacter le serveur."
+  } finally {
+    loading.value = false
+  }
 }
 
 // --- ÉTAPE 2 : renvoyer le code ---
@@ -359,7 +383,7 @@ async function resendCode() {
       return
     }
     code.value = ""
-    startCountdown()
+    startCountdown(data.expiresIn ?? DEFAULT_CODE_TTL)
   } catch {
     errorMessage.value = "Impossible de contacter le serveur."
   } finally {
@@ -395,15 +419,13 @@ async function handleResetPassword() {
     })
     const data = await res.json()
     if (!res.ok) {
-      errorMessage.value = data.error || "Une erreur est survenue."
-      if (data.error && data.error.includes("expiré")) {
-        currentStep.value = 1
-        code.value = ""
-      } else if (data.error && data.error.includes("invalide")) {
-        currentStep.value = 2
-        startCountdown()
+      if (data.reason === "invalid") {
+        // Le code a été vérifié à l'étape 2 : s'il est refusé ici, il a été remplacé → recommencer
+        data.reason = "expired"
+        data.error = "Ce code n'est plus valide. Demandez un nouveau code."
       }
-      // erreur de format de mot de passe → rester à l'étape 3
+      // Sans "reason" (ex. format du mot de passe) → rester à l'étape 3 avec le message
+      handleCodeError(data)
       return
     }
     currentStep.value = 4
@@ -659,18 +681,6 @@ async function handleResetPassword() {
   border-radius: 8px;
   margin: 0 0 20px 0;
   word-break: break-all;
-}
-
-/* === DEV BANNER === */
-.dev-code-banner {
-  background: #fffbeb;
-  border: 1px dashed #f59e0b;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: #92400e;
-  margin-bottom: 12px;
-  text-align: left;
 }
 
 /* === COUNTDOWN === */

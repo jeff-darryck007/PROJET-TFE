@@ -256,6 +256,8 @@ async function handleDelete() {
               <!-- MINIATURES -->
               <div v-if="pictures.length > 1" class="thumbnails">
                 <img
+                  loading="lazy"
+                  decoding="async"
                   v-for="(pic, i) in pictures"
                   :key="i"
                   :src="pic"

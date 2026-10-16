@@ -96,7 +96,7 @@ async function removeFavorite(id) {
 
             <!-- IMAGE -->
             <div class="fav-img">
-              <img v-if="pictureUrl(item.pictures)" :src="pictureUrl(item.pictures)" :alt="item.title" />
+              <img loading="lazy" decoding="async" v-if="pictureUrl(item.pictures)" :src="pictureUrl(item.pictures)" :alt="item.title" />
               <div v-else class="no-img"><i class="fas fa-image"></i></div>
               <span class="badge" :class="`badge-${item.status}`">
                 {{ STATUS_LABEL[item.status] ?? 'Inconnu' }}

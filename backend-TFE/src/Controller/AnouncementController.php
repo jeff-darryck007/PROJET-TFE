@@ -18,6 +18,11 @@ use App\Entity\Users;
 #[Route('/api', name: 'api_anouncement_')]
 final class AnouncementController extends AbstractController
 {
+    private const MAX_PICTURES       = 10;
+    private const MAX_PICTURE_SIZE   = 5 * 1024 * 1024; // 5 Mo
+    private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
     // CRÉER UNE ANNONCE
     #[Route('/anouncement', name: 'create', methods: ['POST'])]
     public function create(
@@ -44,6 +49,32 @@ final class AnouncementController extends AbstractController
             }
         }
 
+        // Validation des photos avant tout enregistrement sur le disque
+        $files = $request->files->get('pictures', []);
+        if (!is_array($files)) {
+            $files = [$files];
+        }
+        if (count($files) > self::MAX_PICTURES) {
+            return $this->json(['error' => sprintf('Maximum %d photos par annonce', self::MAX_PICTURES)], 400);
+        }
+
+        $validated = [];
+        /** @var \Symfony\Component\HttpFoundation\File\UploadedFile $file */
+        foreach ($files as $file) {
+            if (!$file || !$file->isValid()) {
+                return $this->json(['error' => 'Une des photos n\'a pas pu être envoyée'], 400);
+            }
+            if ($file->getSize() > self::MAX_PICTURE_SIZE) {
+                return $this->json(['error' => 'Chaque photo doit faire moins de 5 Mo'], 400);
+            }
+            // Extension déduite du contenu réel du fichier (pas du nom envoyé par le client)
+            $extension = $file->guessExtension();
+            if (!in_array($file->getMimeType(), self::ALLOWED_MIME_TYPES, true) || !in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+                return $this->json(['error' => 'Seules les images JPG, PNG, WEBP et GIF sont acceptées'], 400);
+            }
+            $validated[] = [$file, $extension];
+        }
+
         // Upload des photos
         $uploadDir = $this->getParameter('kernel.project_dir') . '/public/upload/anoucement/';
         if (!is_dir($uploadDir)) {
@@ -51,9 +82,8 @@ final class AnouncementController extends AbstractController
         }
 
         $picturesPaths = [];
-        /** @var \Symfony\Component\HttpFoundation\File\UploadedFile $file */
-        foreach ($request->files->get('pictures', []) as $file) {
-            $filename = uniqid('img_', true) . '.' . $file->guessExtension();
+        foreach ($validated as [$file, $extension]) {
+            $filename = uniqid('img_', true) . '.' . $extension;
             $file->move($uploadDir, $filename);
             $picturesPaths[] = $filename;
         }
@@ -228,17 +258,12 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Non autorisé'], 403);
         }
 
-        $rows = $commentRepo->findRequestersForAnouncement($id);
-        $data = [];
-        foreach ($rows as $row) {
-            $u = $usersRepo->find((int) $row['userId']);
-            if ($u) {
-                $data[] = [
-                    'id'   => $u->getId(),
-                    'name' => $u->getName() . ' ' . $u->getSurname(),
-                ];
-            }
-        }
+        $ids = array_map(fn(array $row) => (int) $row['userId'], $commentRepo->findRequestersForAnouncement($id));
+        // Une seule requête pour tous les demandeurs
+        $data = array_map(fn(Users $u) => [
+            'id'   => $u->getId(),
+            'name' => $u->getName() . ' ' . $u->getSurname(),
+        ], $ids ? $usersRepo->findBy(['id' => $ids]) : []);
 
         return $this->json(['requesters' => $data]);
     }
@@ -250,6 +275,7 @@ final class AnouncementController extends AbstractController
         Request $request,
         AnouncementRepository $repo,
         UsersRepository $usersRepo,
+        CommentRepository $commentRepo,
         EntityManagerInterface $em,
         #[CurrentUser] ?Users $user
     ): JsonResponse {
@@ -265,6 +291,12 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Non autorisé'], 403);
         }
 
+        // Seule une annonce publiée (1) ou déjà réservée (2) peut être (re)réservée :
+        // une annonce en attente, donnée ou refusée ne doit plus changer de statut ici
+        if (!in_array($anouncement->getStatus(), [1, 2], true)) {
+            return $this->json(['error' => 'Cette annonce ne peut pas être réservée'], 400);
+        }
+
         $data             = json_decode($request->getContent(), true);
         $reservedForId    = $data['reservedForUserId'] ?? null;
 
@@ -274,6 +306,15 @@ final class AnouncementController extends AbstractController
             $anouncement->setReservedForUser(null);
             $em->flush();
             return $this->json(['message' => 'Réservation annulée', 'status' => 1]);
+        }
+
+        // Le bénéficiaire doit avoir écrit au donneur sur cette annonce
+        $requesterIds = array_map(
+            fn(array $row) => (int) $row['userId'],
+            $commentRepo->findRequestersForAnouncement($id)
+        );
+        if ((int) $reservedForId === $user->getId() || !in_array((int) $reservedForId, $requesterIds, true)) {
+            return $this->json(['error' => 'Cette personne n\'a pas fait de demande pour cette annonce'], 400);
         }
 
         $reservedForUser = $usersRepo->find((int) $reservedForId);

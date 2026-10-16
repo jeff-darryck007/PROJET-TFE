@@ -512,7 +512,7 @@ const menuItems = [
 
                   <!-- IMAGE -->
                   <div class="my-card-img">
-                    <img v-if="pictureUrl(a.pictures)" :src="pictureUrl(a.pictures)" :alt="a.title" />
+                    <img loading="lazy" decoding="async" v-if="pictureUrl(a.pictures)" :src="pictureUrl(a.pictures)" :alt="a.title" />
                     <div v-else class="my-no-img"><i class="fas fa-image"></i></div>
                     <span class="my-badge" :class="`badge-${a.status}`">
                       {{ STATUS_LABEL[a.status] ?? '—' }}
@@ -600,6 +600,8 @@ const menuItems = [
                   <!-- IMAGE -->
                   <div class="my-card-img">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       v-if="a.pictures && a.pictures.length > 0"
                       :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`"
                       :alt="a.title"

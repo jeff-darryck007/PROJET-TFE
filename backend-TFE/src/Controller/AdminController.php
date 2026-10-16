@@ -59,25 +59,28 @@ final class AdminController extends AbstractController
             return $this->json(['error' => 'Accès refusé'], 403);
         }
 
-        // Utilisateurs
-        $totalUsers  = count($usersRepo->findAll());
-        $activeUsers = count($usersRepo->findBy(['status' => 1]));
-        $bannedUsers = count($usersRepo->findBy(['status' => 0]));
+        // Utilisateurs : comptages faits par la base, sans charger les entités
+        $totalUsers  = $usersRepo->count([]);
+        $activeUsers = $usersRepo->count(['status' => 1]);
+        $bannedUsers = $usersRepo->count(['status' => 0]);
         $totalCredits = (int) $usersRepo->createQueryBuilder('u')
             ->select('SUM(u.credit)')->getQuery()->getSingleScalarResult();
 
-        // Annonces (hors __contact__)
-        $anouncements = $anouncementRepo->createQueryBuilder('a')
+        // Annonces (hors __contact__) : regroupées par statut et par catégorie
+        $groups = $anouncementRepo->createQueryBuilder('a')
+            ->select('a.status AS status, a.categorie AS categorie, COUNT(a.id) AS total')
             ->where('a.categorie != :cat')->setParameter('cat', '__contact__')
-            ->getQuery()->getResult();
+            ->groupBy('a.status, a.categorie')
+            ->getQuery()->getScalarResult();
 
-        $totalAnouncements = count($anouncements);
+        $totalAnouncements = 0;
         $byStatus = [1 => 0, 2 => 0, 3 => 0];
         $byCategory = [];
-        foreach ($anouncements as $a) {
-            $byStatus[$a->getStatus()] = ($byStatus[$a->getStatus()] ?? 0) + 1;
-            $cat = $a->getCategorie();
-            $byCategory[$cat] = ($byCategory[$cat] ?? 0) + 1;
+        foreach ($groups as $g) {
+            $n = (int) $g['total'];
+            $totalAnouncements += $n;
+            $byStatus[(int) $g['status']] = ($byStatus[(int) $g['status']] ?? 0) + $n;
+            $byCategory[$g['categorie']] = ($byCategory[$g['categorie']] ?? 0) + $n;
         }
         arsort($byCategory);
 
@@ -90,21 +93,20 @@ final class AdminController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         // Top 5 donneurs (par annonces données statut=3)
+        // Jointure sur le donneur : nom et crédits récupérés dans la même requête
         $topDonors = $anouncementRepo->createQueryBuilder('a')
-            ->select('IDENTITY(a.user) as userId, COUNT(a.id) as total')
+            ->select('u.name AS name, u.surname AS surname, u.credit AS credit, COUNT(a.id) AS total')
+            ->join('a.user', 'u')
             ->where('a.status = 3')->andWhere('a.categorie != :cat')
             ->setParameter('cat', '__contact__')
-            ->groupBy('a.user')->orderBy('total', 'DESC')
+            ->groupBy('u.id, u.name, u.surname, u.credit')->orderBy('total', 'DESC')
             ->setMaxResults(5)->getQuery()->getScalarResult();
 
-        $topDonorsFull = array_map(function ($row) use ($usersRepo) {
-            $u = $usersRepo->find((int) $row['userId']);
-            return [
-                'name'  => $u ? $u->getName() . ' ' . $u->getSurname() : '—',
-                'total' => (int) $row['total'],
-                'credit'=> $u?->getCredit() ?? 0,
-            ];
-        }, $topDonors);
+        $topDonorsFull = array_map(fn($row) => [
+            'name'  => $row['name'] . ' ' . $row['surname'],
+            'total' => (int) $row['total'],
+            'credit'=> (int) ($row['credit'] ?? 0),
+        ], $topDonors);
 
         return $this->json([
             'users' => [

@@ -16,6 +16,8 @@ use App\Repository\UsersRepository;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Psr\Cache\CacheItemPoolInterface;
 
 #[Route('/api', name: 'api_')]
 final class UsersController extends AbstractController
@@ -222,7 +224,8 @@ final class UsersController extends AbstractController
         Request $request,
         UsersRepository $usersRepository,
         EntityManagerInterface $em,
-        MailerInterface $mailer
+        MailerInterface $mailer,
+        CacheItemPoolInterface $cache
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         $email = strtolower(trim($data['email'] ?? ''));
@@ -233,16 +236,25 @@ final class UsersController extends AbstractController
 
         $user = $usersRepository->findOneBy(['email' => $email]);
 
+        // Même réponse que le compte existe ou non (évite de révéler les emails inscrits)
+        $genericResponse = [
+            'message'   => 'Si un compte existe pour cette adresse, un code a été envoyé.',
+            'expiresIn' => self::RESET_CODE_TTL,
+        ];
+
         if (!$user) {
-            return $this->json(['error' => 'Aucun compte associé à cette adresse email.'], 404);
+            return $this->json($genericResponse, 200);
         }
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $expiresAt = new \DateTime('+2 minutes');
+        $expiresAt = new \DateTime('+' . self::RESET_CODE_TTL . ' seconds');
 
         $user->setResetCode($code);
         $user->setResetCodeExpiresAt($expiresAt);
         $em->flush();
+
+        // Nouveau code → on remet à zéro le compteur d'essais
+        $cache->deleteItem($this->resetAttemptsKey($email));
 
         $mailerFrom = $_ENV['MAILER_FROM'] ?? 'noreply@partagegratuit.be';
 
@@ -254,7 +266,7 @@ final class UsersController extends AbstractController
                 "Bonjour,\n\n" .
                 "Votre code de réinitialisation de mot de passe est :\n\n" .
                 "  $code\n\n" .
-                "Ce code expire dans 2 minutes.\n" .
+                "Ce code expire dans " . (self::RESET_CODE_TTL / 60) . " minutes.\n" .
                 "Si vous n'avez pas demandé de réinitialisation, ignorez cet email.\n\n" .
                 "— L'équipe PartageGratuit"
             );
@@ -262,14 +274,100 @@ final class UsersController extends AbstractController
         try {
             $mailer->send($emailMessage);
         } catch (\Exception $e) {
-            return $this->json(['error' => 'Échec de l\'envoi de l\'email. Vérifiez la configuration SMTP. (' . $e->getMessage() . ')'], 500);
+            return $this->json(['error' => 'Échec de l\'envoi de l\'email. Réessayez plus tard.'], 500);
+        }
+
+        // Le code n'est jamais renvoyé dans la réponse : il n'est connu que par email
+        return $this->json($genericResponse, 200);
+    }
+
+    private const MAX_RESET_ATTEMPTS = 5;
+    private const RESET_CODE_TTL     = 600; // durée de validité du code, en secondes (10 min)
+
+    private function resetAttemptsKey(string $email): string
+    {
+        return 'reset_attempts_' . sha1($email);
+    }
+
+    /**
+     * Vérifie le code de réinitialisation (essais limités, code, expiration).
+     * Renvoie l'utilisateur si le code est bon, sinon la réponse d'erreur à renvoyer.
+     * Le champ "reason" (invalid / expired / too_many) permet au frontend de réagir
+     * sans dépendre du texte du message.
+     */
+    private function checkResetCode(
+        string $email,
+        string $code,
+        UsersRepository $usersRepository,
+        EntityManagerInterface $em,
+        CacheItemPoolInterface $cache
+    ): Users|JsonResponse {
+        // Limite les essais pour empêcher de deviner le code à 6 chiffres
+        $attempts = $cache->getItem($this->resetAttemptsKey($email));
+        $count = (int) $attempts->get();
+
+        if ($count >= self::MAX_RESET_ATTEMPTS) {
+            return $this->json(['error' => 'Trop de tentatives. Demandez un nouveau code.', 'reason' => 'too_many'], 429);
+        }
+
+        $user = $usersRepository->findOneBy(['email' => $email]);
+
+        if (!$user || !$user->getResetCode()) {
+            return $this->json(['error' => 'Code invalide.', 'reason' => 'invalid'], 400);
+        }
+
+        if (!hash_equals($user->getResetCode(), $code)) {
+            $attempts->set($count + 1);
+            $attempts->expiresAfter(self::RESET_CODE_TTL);
+            $cache->save($attempts);
+
+            if ($count + 1 >= self::MAX_RESET_ATTEMPTS) {
+                // Code grillé : l'utilisateur doit en redemander un
+                $user->setResetCode(null);
+                $user->setResetCodeExpiresAt(null);
+                $em->flush();
+                return $this->json(['error' => 'Trop de tentatives. Demandez un nouveau code.', 'reason' => 'too_many'], 429);
+            }
+
+            $left = self::MAX_RESET_ATTEMPTS - $count - 1;
+            return $this->json([
+                'error'  => sprintf('Code invalide. Il vous reste %d essai%s.', $left, $left > 1 ? 's' : ''),
+                'reason' => 'invalid',
+            ], 400);
+        }
+
+        if (!$user->getResetCodeExpiresAt() || $user->getResetCodeExpiresAt() < new \DateTime()) {
+            return $this->json(['error' => 'Code expiré. Veuillez recommencer.', 'reason' => 'expired'], 400);
+        }
+
+        return $user;
+    }
+
+    // VÉRIFICATION DU CODE (étape 2 du formulaire, avant de choisir le nouveau mot de passe)
+    #[Route('/verify-reset-code', name: 'verify_reset_code', methods: ['POST'])]
+    public function verifyResetCode(
+        Request $request,
+        UsersRepository $usersRepository,
+        EntityManagerInterface $em,
+        CacheItemPoolInterface $cache
+    ): JsonResponse {
+        $data  = json_decode($request->getContent(), true);
+        $email = strtolower(trim($data['email'] ?? ''));
+        $code  = trim($data['code'] ?? '');
+
+        if (!$email || !$code) {
+            return $this->json(['error' => 'Champs manquants.'], 400);
+        }
+
+        $result = $this->checkResetCode($email, $code, $usersRepository, $em, $cache);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
         return $this->json([
-            'message' => 'Code envoyé.',
-            // ⚠️ DEV ONLY — retirer en production
-            'dev_code' => $code
-        ], 200);
+            'valid'     => true,
+            'expiresIn' => max(0, $result->getResetCodeExpiresAt()->getTimestamp() - time()),
+        ]);
     }
 
     // RÉINITIALISATION DU MOT DE PASSE AVEC LE CODE
@@ -278,7 +376,8 @@ final class UsersController extends AbstractController
         Request $request,
         UsersRepository $usersRepository,
         EntityManagerInterface $em,
-        UserPasswordHasherInterface $passwordHasher
+        UserPasswordHasherInterface $passwordHasher,
+        CacheItemPoolInterface $cache
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -290,14 +389,9 @@ final class UsersController extends AbstractController
             return $this->json(['error' => 'Champs manquants.'], 400);
         }
 
-        $user = $usersRepository->findOneBy(['email' => $email]);
-
-        if (!$user || $user->getResetCode() !== $code) {
-            return $this->json(['error' => 'Code invalide.'], 400);
-        }
-
-        if (!$user->getResetCodeExpiresAt() || $user->getResetCodeExpiresAt() < new \DateTime()) {
-            return $this->json(['error' => 'Code expiré. Veuillez recommencer.'], 400);
+        $user = $this->checkResetCode($email, $code, $usersRepository, $em, $cache);
+        if ($user instanceof JsonResponse) {
+            return $user;
         }
 
         if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/[0-9]/', $password)) {
@@ -308,11 +402,13 @@ final class UsersController extends AbstractController
         $user->setResetCode(null);
         $user->setResetCodeExpiresAt(null);
         $em->flush();
+        $cache->deleteItem($this->resetAttemptsKey($email));
 
         return $this->json(['message' => 'Mot de passe réinitialisé avec succès.'], 200);
     }
 
     // LISTE DES UTILISATEURS
+    #[IsGranted('ROLE_ADMIN')]
     #[Route('/users', name: 'app_users', methods: ['GET'])]
     public function index(UsersRepository $userRepository): JsonResponse
     {
@@ -322,13 +418,13 @@ final class UsersController extends AbstractController
         $data = [];
         foreach ($users as $user) {
             $data[] = [
-                ‘id’ => $user->getId(),
-                ‘email’ => $user->getEmail(),
-                ‘name’ => $user->getName(),
-                ‘surname’ => $user->getSurname(),
-                ‘roles’ => $user->getRoles(),
-                ‘status’ => $user->getStatus(),
-                ‘credit’ => $user->getCredit(),
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'name' => $user->getName(),
+                'surname' => $user->getSurname(),
+                'roles' => $user->getRoles(),
+                'status' => $user->getStatus(),
+                'credit' => $user->getCredit(),
             ];
         }
 
@@ -340,6 +436,7 @@ final class UsersController extends AbstractController
 
 
     // MODIFIER UN UTILISATEUR
+    #[IsGranted('ROLE_ADMIN')]
     #[Route('/update_user/{id}', name: 'app_user_update', methods: ['PUT', 'PATCH'])]
     public function update(
         int $id,
@@ -422,6 +519,7 @@ final class UsersController extends AbstractController
 
 
     // SUPPRIMER UN UTILISATEUR
+    #[IsGranted('ROLE_ADMIN')]
     #[Route('/delete_user/{id}', name: 'app_user_delete', methods: ['DELETE'])]
     public function delete(
         int $id,
@@ -449,6 +547,7 @@ final class UsersController extends AbstractController
 
 
     // MODIFIER LE STATUS D'UN UTILISATEUR
+    #[IsGranted('ROLE_ADMIN')]
     #[Route('/update_status/{id}', name: 'app_user_update_status', methods: ['PATCH'])]
     public function updateStatus(
         int $id,

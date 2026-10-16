@@ -25,6 +25,7 @@ final class CommentController extends AbstractController
         EntityManagerInterface $em,
         AnouncementRepository $anouncementRepo,
         UsersRepository $usersRepo,
+        CommentRepository $commentRepo,
         #[CurrentUser] ?Users $user
     ): JsonResponse {
         if (!$user) {
@@ -58,6 +59,14 @@ final class CommentController extends AbstractController
             // Le propriétaire répond : le threadUserId doit être fourni
             if (!$threadUserId) {
                 return $this->json(['error' => 'threadUserId requis pour le donneur'], 400);
+            }
+            // Le donneur ne peut répondre qu'à une conversation existante sur cette annonce
+            $requesterIds = array_map(
+                fn(array $row) => (int) $row['userId'],
+                $commentRepo->findRequestersForAnouncement($anouncement->getId())
+            );
+            if (!in_array((int) $threadUserId, $requesterIds, true)) {
+                return $this->json(['error' => 'Aucune conversation avec cet utilisateur'], 400);
             }
             $threadUser = $usersRepo->find($threadUserId);
             if (!$threadUser) {
@@ -137,6 +146,12 @@ final class CommentController extends AbstractController
             $comments = $commentRepo->findThread($id, $user->getId());
         } else {
             $comments = [];
+        }
+
+        // ?afterId=X → uniquement les messages plus récents (rafraîchissement automatique de la messagerie)
+        $afterId = (int) $request->query->get('afterId', 0);
+        if ($afterId > 0) {
+            $comments = array_values(array_filter($comments, fn(Comment $c) => $c->getId() > $afterId));
         }
 
         $data = array_map(fn(Comment $c) => [

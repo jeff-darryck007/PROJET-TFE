@@ -15,8 +15,11 @@ export async function sendComment(anouncementId, contenue, token, threadUserId =
   }
 }
 
-export async function fetchComments(anouncementId, token, threadUserId = null) {
-  const params = threadUserId ? { threadUserId } : {};
+// afterId : ne récupérer que les messages plus récents que cet id (rafraîchissement automatique)
+export async function fetchComments(anouncementId, token, threadUserId = null, afterId = null) {
+  const params = {};
+  if (threadUserId) params.threadUserId = threadUserId;
+  if (afterId) params.afterId = afterId;
   const response = await axios.get(
     `${BASE_URL}/api/anouncement/${anouncementId}/comments`,
     { headers: { Authorization: `Bearer ${token}` }, params }

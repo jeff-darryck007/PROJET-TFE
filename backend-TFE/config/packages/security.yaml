@@ -2,6 +2,11 @@ security:
     password_hashers:
         App\Entity\Users: 'auto'
 
+    # Les rôles sont stockés sans préfixe ("admin") : on les relie à ROLE_ADMIN
+    # pour pouvoir utiliser access_control et #[IsGranted]
+    role_hierarchy:
+        admin: [ROLE_ADMIN]
+
     providers:
         app_user_provider:
             entity:
@@ -43,7 +48,9 @@ security:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/forgot-password, roles: PUBLIC_ACCESS }
         - { path: ^/api/reset-password, roles: PUBLIC_ACCESS }
+        - { path: ^/api/verify-reset-code, roles: PUBLIC_ACCESS }
         - { path: ^/api/banned-appeal, roles: PUBLIC_ACCESS }
         - { path: ^/api/anouncements$, roles: PUBLIC_ACCESS }
         - { path: ^/api/anouncement/\d+$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }

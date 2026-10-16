@@ -476,7 +476,7 @@ async function handleAdminDelete(id) {
           <div class="pending-list">
             <div v-for="r in pendingRecoveries" :key="r.id" class="pending-card">
               <div class="pending-img">
-                <img v-if="r.pictures && r.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${r.pictures[0]}`" :alt="r.title" />
+                <img loading="lazy" decoding="async" v-if="r.pictures && r.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${r.pictures[0]}`" :alt="r.title" />
                 <div v-else class="pending-no-img"><i class="fas fa-image"></i></div>
               </div>
               <div class="pending-info">
@@ -649,7 +649,7 @@ async function handleAdminDelete(id) {
               <div v-else class="pending-admin-list">
                 <div v-for="a in pendingAdminAnouncements" :key="a.id" class="pending-admin-card">
                   <div class="pending-admin-img">
-                    <img v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
+                    <img loading="lazy" decoding="async" v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
                     <div v-else class="pending-admin-no-img"><i class="fas fa-image"></i></div>
                   </div>
                   <div class="pending-admin-info">
@@ -733,7 +733,7 @@ async function handleAdminDelete(id) {
                     <tr v-for="a in allAdminAnouncements" :key="a.id">
                       <td>
                         <div class="gestion-thumb">
-                          <img v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
+                          <img loading="lazy" decoding="async" v-if="a.pictures && a.pictures.length" :src="`${URL_FOLDER_ANOUNCEMENT}/${a.pictures[0]}`" :alt="a.title" />
                           <i v-else class="fas fa-image"></i>
                         </div>
                       </td>
@@ -987,7 +987,7 @@ async function handleAdminDelete(id) {
 
             <!-- IMAGE -->
             <div class="card-img-wrap">
-              <img v-if="pictureUrl(a.pictures)" :src="pictureUrl(a.pictures)" :alt="a.title" />
+              <img loading="lazy" decoding="async" v-if="pictureUrl(a.pictures)" :src="pictureUrl(a.pictures)" :alt="a.title" />
               <div v-else class="no-img"><i class="fas fa-image"></i></div>
               <span class="status-badge" :class="`badge-${a.status}`">
                 {{ STATUS_LABEL[a.status] ?? "Inconnu" }}

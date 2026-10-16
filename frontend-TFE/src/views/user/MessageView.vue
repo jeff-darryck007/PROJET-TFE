@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Navbar from "../Navbar.vue";
 import Footer from "../Footer.vue";
@@ -68,7 +68,101 @@ onMounted(async () => {
       } catch { /* silencieux */ }
     }
   }
+
+  startPolling();
 });
+
+onUnmounted(stopPolling);
+
+// ─── Rafraîchissement automatique ───────────────────────────────────────────
+// Toutes les 3 s : nouveaux messages de la conversation ouverte.
+// Toutes les 10 s : liste des conversations (nouvelles discussions, derniers messages).
+// Rien n'est demandé au serveur quand l'onglet est caché.
+const MESSAGES_POLL_MS = 3000;
+const CONVOS_EVERY     = 4; // 4 × 3 s ≈ 10 s
+let pollTimer  = null;
+let pollCount  = 0;
+let polling    = false;
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollTick, MESSAGES_POLL_MS);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  document.removeEventListener("visibilitychange", onVisibilityChange);
+}
+
+// Retour sur l'onglet → mise à jour immédiate, sans attendre le prochain tour
+function onVisibilityChange() {
+  if (!document.hidden) pollTick(true);
+}
+
+function convoKey(convo) {
+  return convo ? `${convo.anouncementId}-${convo.threadUserId}` : null;
+}
+
+async function pollTick(refreshConvos = false) {
+  if (document.hidden || polling) return;
+  polling = true;
+  try {
+    pollCount++;
+    await refreshMessages();
+    if (refreshConvos || pollCount % CONVOS_EVERY === 0) await refreshConversations();
+  } finally {
+    polling = false;
+  }
+}
+
+async function refreshMessages() {
+  const convo = selected.value;
+  if (!convo || loadingMessages.value) return;
+
+  const lastId = messages.value.reduce((max, m) => Math.max(max, m.id ?? 0), 0);
+  try {
+    const data = await fetchComments(
+      convo.anouncementId,
+      token,
+      convo.isOwner ? convo.threadUserId : null,
+      lastId || null
+    );
+    // L'utilisateur a changé de conversation pendant la requête → on ignore la réponse
+    if (convoKey(selected.value) !== convoKey(convo)) return;
+
+    const known = new Set(messages.value.map(m => m.id));
+    const fresh = (data.comments ?? []).filter(m => !known.has(m.id));
+    if (!fresh.length) return;
+
+    const container = messagesContainer.value;
+    const wasAtBottom = !container ||
+      container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+
+    messages.value.push(...fresh);
+
+    const last = fresh[fresh.length - 1];
+    const listed = conversations.value.find(c => convoKey(c) === convoKey(convo));
+    if (listed) { listed.lastMessage = last.contenue; listed.lastDate = last.date; }
+
+    // On ne force le défilement que si l'utilisateur était déjà en bas (il ne lit pas l'historique)
+    if (wasAtBottom) await scrollBottom();
+  } catch { /* silencieux : on réessaiera au prochain tour */ }
+}
+
+async function refreshConversations() {
+  try {
+    const data = await fetchMyConversations(token);
+    const fresh = data.conversations ?? [];
+    // Conversation ouverte pas encore enregistrée côté serveur (premier contact, aucun message) → on la garde
+    const current = selected.value;
+    if (current && !fresh.some(c => convoKey(c) === convoKey(current))) {
+      fresh.unshift(current);
+    }
+    conversations.value = fresh;
+  } catch { /* silencieux */ }
+}
 
 async function openConversation(convo, preloadedMessages = null) {
   selected.value  = convo;
@@ -104,7 +198,8 @@ async function send() {
   try {
     const threadUserId = selected.value.isOwner ? selected.value.threadUserId : null;
     const res = await sendComment(selected.value.anouncementId, text, token, threadUserId);
-    messages.value.push(res);
+    // Le rafraîchissement automatique a pu ajouter ce message entre-temps → pas de doublon
+    if (!messages.value.some(m => m.id === res.id)) messages.value.push(res);
 
     const convo = conversations.value.find(
       c => c.anouncementId === selected.value.anouncementId &&

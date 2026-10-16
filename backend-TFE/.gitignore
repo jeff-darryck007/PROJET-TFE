@@ -22,3 +22,8 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+
+###> build du frontend Vue copié dans public/ (production) ###
+/public/index.html
+/public/favicon.ico
+###< build du frontend Vue ###

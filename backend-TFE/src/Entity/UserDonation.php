@@ -14,7 +14,7 @@ class UserDonation
     private ?int $id = null;
 
     # relation de cle etrangere avec la table donation
-    #[ORM\ManyToOne(inversedBy: 'listDonation')]
+    #[ORM\ManyToOne(inversedBy: 'listUserDonation')]
     private ?Donation $donation = null;
 
     # relation de cle etrangere avec la table user

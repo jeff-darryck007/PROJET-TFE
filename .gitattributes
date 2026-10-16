@@ -1,0 +1,2 @@
+# Scripts exécutés sur le serveur Linux : toujours en fins de ligne LF
+*.sh text eol=lf

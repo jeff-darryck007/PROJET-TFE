@@ -1,0 +1,27 @@
+# Configuration Apache du site en production (alwaysdata).
+# Le dossier public/ sert à la fois :
+#   - l'API Symfony        : /api/...      → index.php
+#   - les photos           : /upload/...   → fichiers du disque
+#   - l'application Vue    : tout le reste → index.html (build de frontend-TFE copié ici)
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # PHP tourne en FastCGI : sans cette règle, Apache ne transmet pas l'en-tête
+    # "Authorization: Bearer <token>" et toutes les routes protégées par JWT renvoient 401
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # API → Symfony
+    RewriteRule ^api(/|$) index.php [L]
+
+    # Fichier existant (photos, JS/CSS de Vue, favicon...) → servi tel quel
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Toute autre adresse (/login, /annonce/12, ...) → application Vue,
+    # qui affiche la bonne page grâce à son routeur
+    RewriteRule ^ index.html [L]
+</IfModule>

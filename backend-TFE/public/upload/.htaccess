@@ -1,0 +1,5 @@
+# Dossier des photos envoyées par les utilisateurs :
+# aucun script ne doit pouvoir y être exécuté, même si un fichier passait la validation
+<FilesMatch "\.(php|phtml|phar|pht|phps|cgi|pl|py|sh)$">
+    Require all denied
+</FilesMatch>

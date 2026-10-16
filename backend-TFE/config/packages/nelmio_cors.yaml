@@ -8,14 +8,11 @@ nelmio_cors:
         max_age: 3600
     paths:
         '^/api/':
-            allow_origin:
-                - 'http://localhost:5173'
-                - 'http://127.0.0.1:5173'
-                - 'http://localhost:5174'
-                - 'http://127.0.0.1:5174'
-                - 'http://localhost:3000'
-                - 'http://localhost'
-                - 'http://127.0.0.1'
+            # Origines autorisées : expression régulière définie dans .env (CORS_ALLOW_ORIGIN)
+            # - en local : localhost / 127.0.0.1, tous ports (Vite sur 5173, etc.)
+            # - en production : inutile si le frontend est servi par le même site que l'API
+            origin_regex: true
+            allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
             allow_credentials: false
             allow_headers: ['Content-Type', 'Authorization', 'Accept']
             allow_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']

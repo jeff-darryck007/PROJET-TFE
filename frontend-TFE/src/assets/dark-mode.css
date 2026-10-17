@@ -485,6 +485,20 @@ html.dark-mode .role-badge {
   color: #6ab0ff;
 }
 
+html.dark-mode .become-donor {
+  background: #14261b;
+  border-color: #1f5a33;
+}
+
+html.dark-mode .become-donor h3,
+html.dark-mode .become-donor .become-donor-hint {
+  color: #4ade80;
+}
+
+html.dark-mode .become-donor p {
+  color: #c8c8c8;
+}
+
 /* Aide */
 html.dark-mode .help-item {
   background: #252525;

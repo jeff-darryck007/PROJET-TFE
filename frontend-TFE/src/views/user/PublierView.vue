@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navbar from "../Navbar.vue";
 import Footer from "../Footer.vue";
@@ -32,6 +32,12 @@ const successMsg = ref("");
 onMounted(() => {
   const token = localStorage.getItem("token");
   if (!token) router.push("/login");
+});
+
+// Publication réservée aux donateurs et aux admins (vérifié aussi côté serveur)
+const canPublier = computed(() => {
+  const roles = (localStorage.getItem("roles") || "").split(",").map(r => r.trim());
+  return roles.includes("donateur") || roles.includes("admin");
 });
 
 function handleFiles(e) {
@@ -107,7 +113,15 @@ async function submitArticle() {
           <i class="fas fa-exclamation-circle"></i> {{ errorMsg }}
         </div>
 
-        <form @submit.prevent="submitArticle">
+        <!-- VISITEUR : pas encore donateur -->
+        <div v-if="!canPublier" class="alert alert-error">
+          <i class="fas fa-lock"></i>
+          La publication d'annonces est réservée aux donateurs.
+          Vous pouvez devenir donateur depuis votre
+          <router-link to="/ProfileView">profil</router-link> (Informations du compte).
+        </div>
+
+        <form v-if="canPublier" @submit.prevent="submitArticle">
 
           <!-- TITRE -->
           <div class="input-group">

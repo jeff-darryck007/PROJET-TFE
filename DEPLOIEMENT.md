@@ -121,6 +121,12 @@ Dans l'administration : **Web → Sites**, modifie le site existant (ou ajoute-e
 
 Le fichier `backend-TFE/public/.htaccess` (déjà dans le projet) se charge de répartir les adresses entre Symfony, les photos et Vue.
 
+> **Alternative sans passer par l'administration** (c'est ce qui est utilisé sur `darryck.alwaysdata.net`) : le site par défaut sert le dossier `~/www`. On le remplace par un lien vers le dossier `public` du projet :
+>
+> ```bash
+> cd ~ && mv www www.origine && ln -s PROJET-TFE/backend-TFE/public www
+> ```
+
 ## 8. Mettre en ligne le frontend Vue
 
 Le frontend doit être **compilé**, puis copié dans `backend-TFE/public/`.
@@ -186,7 +192,7 @@ cd ~/PROJET-TFE
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
-| Erreur 500 | Erreur PHP / config | Lire `backend-TFE/var/log/prod.log` |
+| Erreur 500 | Erreur PHP / config | Lire la fin de `~/admin/logs/apache/apache.log` (en production, Symfony y écrit ses erreurs) |
 | Page blanche à l'accueil | Frontend pas copié | Refaire l'étape 8 |
 | Toujours « non connecté » (401) | Clés JWT absentes ou passphrase modifiée | Refaire `lexik:jwt:generate-keypair` (étape 6) |
 | « Échec de l'envoi de l'email » | `MAILER_DSN` incorrect | Vérifier l'étape 9 |

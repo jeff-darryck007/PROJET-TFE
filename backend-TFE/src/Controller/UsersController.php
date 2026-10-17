@@ -146,6 +146,34 @@ final class UsersController extends AbstractController
         return $this->json(['message' => 'Mot de passe modifié avec succès']);
     }
 
+    // DEVENIR DONATEUR : un visiteur passe lui-même au rôle donateur (sans recréer de compte)
+    #[Route('/me/become-donor', name: 'api_me_become_donor', methods: ['POST'])]
+    public function becomeDonor(
+        #[CurrentUser] ?Users $user,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        if (!$user) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        // Rôles enregistrés (sans ROLE_USER, ajouté automatiquement par getRoles())
+        $roles = array_values(array_diff($user->getRoles(), ['ROLE_USER']));
+
+        // Seul un visiteur peut changer : un donateur l'est déjà, un admin garde son rôle
+        if (!in_array('visiteur', $roles, true)) {
+            return $this->json(['error' => 'Seul un compte visiteur peut devenir donateur.'], 400);
+        }
+
+        $roles = array_map(fn(string $r) => $r === 'visiteur' ? 'donateur' : $r, $roles);
+        $user->setRoles(array_values(array_unique($roles)));
+        $em->flush();
+
+        return $this->json([
+            'message' => 'Vous êtes maintenant donateur : vous pouvez publier des annonces.',
+            'roles'   => $user->getRoles(),
+        ]);
+    }
+
     #[Route('/register', name: 'register', methods: ['POST'])]
     public function register(
         Request $request,

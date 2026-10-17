@@ -89,6 +89,19 @@ export async function changePassword(oldPassword, newPassword, token) {
   }
 }
 
+// passer de visiteur à donateur (le compte, les messages et les favoris sont conservés)
+export async function becomeDonor(token) {
+  try {
+    const response = await axios.post(`${BASE_URL}/api/me/become-donor`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors du changement de rôle");
+  }
+}
+
 export async function banUser(id, token) {
   try {
     const response = await axios.patch(`${BASE_URL}/api/admin/users/${id}/ban`, {}, {

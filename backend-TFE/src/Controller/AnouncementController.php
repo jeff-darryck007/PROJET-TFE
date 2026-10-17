@@ -35,6 +35,13 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Non authentifié'], 401);
         }
 
+        // Seuls les donateurs (et les admins) publient ; un visiteur peut devenir donateur depuis son profil
+        if (!array_intersect(['donateur', 'admin'], $user->getRoles())) {
+            return $this->json([
+                'error' => 'Seuls les donateurs peuvent publier une annonce. Devenez donateur depuis votre profil (Informations du compte).',
+            ], 403);
+        }
+
         $title       = trim($request->request->get('title', ''));
         $categorie   = trim($request->request->get('categorie', ''));
         $description = trim($request->request->get('description', ''));

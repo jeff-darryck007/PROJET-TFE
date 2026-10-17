@@ -8,6 +8,7 @@ import { toggleFavorite, fetchLikedIds } from "../controller/controllerFavorite.
 import { fetchReportedComments, deleteAdminComment } from "../controller/controllerComment.js";
 import { fetchUserProfile, fetchAdminUsers, fetchAdminStats, banUser, unbanUser } from "../controller/controllerLogin.js";
 import { URL_FOLDER_ANOUNCEMENT } from "../server/config.js";
+import { useNow, remainingMs, formatRemaining } from "../utils/countdown.js";
 import "@fortawesome/fontawesome-free/css/all.css";
 
 const router = useRouter();
@@ -29,6 +30,9 @@ const isAdmin    = roles.includes("admin");
 
 const pendingRecoveries = ref([]);
 const validating        = ref(null);
+// Compte à rebours du délai de récupération (10 h après la réservation)
+const now = useNow();
+const recoveryLeft = (r) => remainingMs(r.reservationExpiresAt, now.value);
 const validateError     = ref("");
 const userCredit        = ref(null);
 
@@ -485,10 +489,19 @@ async function handleAdminDelete(id) {
                 <p class="pending-adress"><i class="fas fa-map-marker-alt"></i> {{ r.adress }}</p>
               </div>
               <div class="pending-actions">
+                <!-- Délai de récupération : décompte jusqu'à 0 -->
+                <p v-if="recoveryLeft(r) > 0" class="pending-countdown">
+                  <i class="fas fa-hourglass-half"></i>
+                  Il vous reste <strong>{{ formatRemaining(recoveryLeft(r)) }}</strong> pour le récupérer
+                </p>
+                <p v-else-if="recoveryLeft(r) === 0" class="pending-countdown expired">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  Délai dépassé : l'annonce redevient disponible.
+                </p>
                 <p class="pending-msg">Avez-vous bien récupéré cet objet ?</p>
                 <button
                   class="btn-validate"
-                  :disabled="validating === r.id"
+                  :disabled="validating === r.id || recoveryLeft(r) === 0"
                   @click="handleValidate(r.id)"
                 >
                   <i :class="validating === r.id ? 'fas fa-spinner fa-spin' : 'fas fa-check-circle'"></i>
@@ -1120,6 +1133,22 @@ async function handleAdminDelete(id) {
 
 .pending-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .pending-msg { font-size: 13px; color: #166534; font-weight: 600; margin: 0; }
+
+/* Délai de récupération (compte à rebours) */
+.pending-countdown {
+  font-size: 13px;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pending-countdown strong { font-variant-numeric: tabular-nums; }
+.pending-countdown.expired { color: #dc2626; background: #fef2f2; border-color: #fca5a5; }
 
 .btn-validate {
   display: flex;

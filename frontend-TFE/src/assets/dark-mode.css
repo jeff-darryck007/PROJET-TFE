@@ -737,3 +737,18 @@ html.dark-mode .page-container {
 html.dark-mode .form-wrapper {
   background: transparent;
 }
+
+/* Délai de récupération d'une annonce réservée (compte à rebours) */
+html.dark-mode .pending-countdown,
+html.dark-mode .recovery-countdown {
+  background: #2a2412;
+  border-color: #6b5410;
+  color: #fbbf24;
+}
+
+html.dark-mode .pending-countdown.expired,
+html.dark-mode .recovery-countdown.expired {
+  background: #2a1515;
+  border-color: #7f1d1d;
+  color: #f87171;
+}

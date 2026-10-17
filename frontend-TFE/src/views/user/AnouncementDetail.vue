@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../Navbar.vue'
 import Footer from '../Footer.vue'
@@ -8,6 +8,7 @@ import { fetchAnouncementById, deleteAnouncement, fetchRequesters, reserveAnounc
 import { toggleFavorite, fetchLikedIds } from '../../controller/controllerFavorite.js'
 import { fetchPublicComments, sendPublicComment, reportComment } from '../../controller/controllerComment.js'
 import { URL_FOLDER_ANOUNCEMENT } from '../../server/config.js'
+import { useNow, remainingMs, formatRemaining } from '../../utils/countdown.js'
 
 const route  = useRoute()
 const router = useRouter()
@@ -38,6 +39,29 @@ const canContact        = ref(true)
 const recoveredThisMonth = ref(0)
 
 const STATUS_LABEL = { 1: 'Disponible', 2: 'Réservé', 3: 'Donné' }
+
+// --- Délai de récupération (10 h après la réservation) ---
+const now = useNow()
+const reservationLeft = computed(() =>
+  anouncement.value?.status === 2 ? remainingMs(anouncement.value.reservationExpiresAt, now.value) : null
+)
+const isReservedForMe = computed(() =>
+  anouncement.value?.status === 2 && anouncement.value?.reservedForUserId === currentUserId
+)
+
+// Délai écoulé : le serveur libère la réservation (vérification toutes les 15 s au plus),
+// on recharge donc l'annonce un peu après pour l'afficher de nouveau disponible
+let expiryReload = null
+watch(reservationLeft, (left) => {
+  if (left !== 0 || expiryReload) return
+  expiryReload = setTimeout(async () => {
+    try {
+      anouncement.value = await fetchAnouncementById(anouncement.value.id, token)
+    } catch { /* silencieux */ }
+    expiryReload = null
+  }, 16000)
+})
+onUnmounted(() => clearTimeout(expiryReload))
 
 onMounted(async () => {
   const id = parseInt(route.params.id)
@@ -145,6 +169,7 @@ async function handleReserve(userId) {
     const res = await reserveAnouncement(anouncement.value.id, userId, token)
     anouncement.value.status = res.status
     anouncement.value.reservedForUserId = res.reservedForUserId ?? null
+    anouncement.value.reservationExpiresAt = res.reservationExpiresAt ?? null
     selectedRequester.value = null
   } catch (e) {
     reserveError.value = e.message
@@ -159,6 +184,7 @@ async function handleCancelReserve() {
     const res = await reserveAnouncement(anouncement.value.id, null, token)
     anouncement.value.status = res.status
     anouncement.value.reservedForUserId = null
+    anouncement.value.reservationExpiresAt = null
   } catch (e) {
     reserveError.value = e.message
   } finally {
@@ -328,6 +354,21 @@ async function handleDelete() {
 
               <!-- Non-propriétaire : contacter le donneur -->
               <template v-else>
+                <!-- Réservé pour moi : délai de récupération -->
+                <div v-if="isReservedForMe" class="recovery-countdown" :class="{ expired: reservationLeft === 0 }">
+                  <template v-if="reservationLeft !== 0">
+                    <i class="fas fa-hourglass-half"></i>
+                    <span>
+                      Réservé pour vous ! Il vous reste
+                      <strong>{{ reservationLeft !== null ? formatRemaining(reservationLeft) : '—' }}</strong>
+                      pour le récupérer, puis confirmez depuis votre accueil.
+                    </span>
+                  </template>
+                  <template v-else>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Délai dépassé : l'annonce redevient disponible.</span>
+                  </template>
+                </div>
                 <div v-if="isLoggedIn && !canContact" class="contact-limit-msg">
                   <i class="fas fa-lock"></i>
                   Limite atteinte : {{ recoveredThisMonth }}/5 récupérations ce mois-ci.<br />
@@ -406,6 +447,14 @@ async function handleDelete() {
                   <i class="fas fa-clock reserve-icon"></i>
                   <p>Cet article est réservé. En attente de la confirmation du bénéficiaire.</p>
                 </div>
+                <p v-if="reservationLeft > 0" class="recovery-countdown">
+                  <i class="fas fa-hourglass-half"></i>
+                  Temps restant pour la récupération : <strong>{{ formatRemaining(reservationLeft) }}</strong>
+                </p>
+                <p v-else-if="reservationLeft === 0" class="recovery-countdown expired">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  Délai dépassé : l'annonce redevient disponible.
+                </p>
                 <button class="btn-cancel-reserve" :disabled="reserving" @click="handleCancelReserve">
                   <i class="fas fa-unlock"></i> Remettre en disponible
                 </button>
@@ -980,6 +1029,24 @@ async function handleDelete() {
 }
 .reserve-icon { font-size: 22px; color: #d97706; flex-shrink: 0; }
 .reserve-status p { margin: 0; font-size: 13px; color: #92400e; line-height: 1.5; }
+
+/* Délai de récupération (compte à rebours) */
+.recovery-countdown {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.recovery-countdown i { margin-top: 3px; }
+.recovery-countdown strong { font-variant-numeric: tabular-nums; }
+.recovery-countdown.expired { color: #dc2626; background: #fef2f2; border-color: #fca5a5; }
 
 .btn-cancel-reserve {
   width: 100%;

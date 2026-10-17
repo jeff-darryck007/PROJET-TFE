@@ -54,6 +54,10 @@ class Anouncement
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTime $recoveredAt = null;
 
+    // Date limite pour récupérer l'objet une fois réservé (statut 2) ; passé ce délai, l'annonce redevient disponible
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTime $reservationExpiresAt = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -211,6 +215,18 @@ class Anouncement
     public function setRecoveredAt(?\DateTime $recoveredAt): static
     {
         $this->recoveredAt = $recoveredAt;
+
+        return $this;
+    }
+
+    public function getReservationExpiresAt(): ?\DateTime
+    {
+        return $this->reservationExpiresAt;
+    }
+
+    public function setReservationExpiresAt(?\DateTime $reservationExpiresAt): static
+    {
+        $this->reservationExpiresAt = $reservationExpiresAt;
 
         return $this;
     }

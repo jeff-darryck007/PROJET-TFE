@@ -7,6 +7,7 @@ use App\Entity\Notification;
 use App\Repository\AnouncementRepository;
 use App\Repository\CommentRepository;
 use App\Repository\UsersRepository;
+use App\Service\ReservationExpirer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -174,6 +175,7 @@ final class AnouncementController extends AbstractController
             'createAt'          => $a->getCreateAt()?->format('Y-m-d'),
             'pictures'          => json_decode($a->getPictures() ?? '[]', true),
             'reservedForUserId' => $a->getReservedForUser()?->getId(),
+            'reservationExpiresAt' => $a->getReservationExpiresAt()?->format(\DateTimeInterface::ATOM),
         ], $anouncements);
 
         return $this->json(['success' => true, 'data' => $data]);
@@ -244,6 +246,7 @@ final class AnouncementController extends AbstractController
             'donorName'         => $a->getUser()?->getName() . ' ' . $a->getUser()?->getSurname(),
             'donorPicture'      => $a->getUser()?->getPicture(),
             'reservedForUserId' => $a->getReservedForUser()?->getId(),
+            'reservationExpiresAt' => $a->getReservationExpiresAt()?->format(\DateTimeInterface::ATOM),
         ]);
     }
 
@@ -311,6 +314,7 @@ final class AnouncementController extends AbstractController
             // Annuler la réservation
             $anouncement->setStatus(1);
             $anouncement->setReservedForUser(null);
+            $anouncement->setReservationExpiresAt(null);
             $em->flush();
             return $this->json(['message' => 'Réservation annulée', 'status' => 1]);
         }
@@ -329,15 +333,20 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Utilisateur introuvable'], 404);
         }
 
+        // Le bénéficiaire a ReservationExpirer::HOURS heures pour récupérer l'objet
+        $deadline = ReservationExpirer::deadlineFromNow();
         $anouncement->setStatus(2);
         $anouncement->setReservedForUser($reservedForUser);
+        $anouncement->setReservationExpiresAt($deadline);
 
         $notif = new Notification();
         $notif->setText(sprintf(
-            '"%s" vous a été réservé par %s %s. Confirmez la récupération depuis votre accueil.',
-            $anouncement->getTitle(),
+            '"%s" vous a été réservé par %s %s. Vous avez %d h pour le récupérer (avant le %s) et confirmer depuis votre accueil.',
+            mb_strimwidth((string) $anouncement->getTitle(), 0, 60, '…'),
             $user->getName(),
-            $user->getSurname()
+            $user->getSurname(),
+            ReservationExpirer::HOURS,
+            $deadline->format('d/m à H:i')
         ));
         $notif->setType('reservation');
         $notif->setIsRead(false);
@@ -350,8 +359,9 @@ final class AnouncementController extends AbstractController
         return $this->json([
             'message'           => 'Annonce réservée',
             'status'            => 2,
-            'reservedForUserId' => $reservedForUser->getId(),
-            'reservedForName'   => $reservedForUser->getName() . ' ' . $reservedForUser->getSurname(),
+            'reservedForUserId'    => $reservedForUser->getId(),
+            'reservedForName'      => $reservedForUser->getName() . ' ' . $reservedForUser->getSurname(),
+            'reservationExpiresAt' => $deadline->format(\DateTimeInterface::ATOM),
         ]);
     }
 
@@ -361,6 +371,7 @@ final class AnouncementController extends AbstractController
         int $id,
         AnouncementRepository $repo,
         EntityManagerInterface $em,
+        ReservationExpirer $expirer,
         #[CurrentUser] ?Users $user
     ): JsonResponse {
         if (!$user) {
@@ -371,15 +382,30 @@ final class AnouncementController extends AbstractController
         if (!$anouncement) {
             return $this->json(['error' => 'Annonce introuvable'], 404);
         }
+        // Statut vérifié en premier : si le délai vient d'expirer, la réservation a déjà été
+        // libérée (plus de bénéficiaire) et l'utilisateur doit recevoir un message clair, pas un 403
+        if ($anouncement->getStatus() !== 2) {
+            return $this->json([
+                'error' => sprintf('Cette réservation n\'est plus active : le délai de %d h est dépassé ou le donneur l\'a annulée.', ReservationExpirer::HOURS),
+            ], 400);
+        }
         if ($anouncement->getReservedForUser()?->getId() !== $user->getId()) {
             return $this->json(['error' => 'Non autorisé'], 403);
         }
-        if ($anouncement->getStatus() !== 2) {
-            return $this->json(['error' => 'Cette annonce n\'est pas en statut Réservé'], 400);
+
+        // Délai dépassé : la réservation est libérée et la confirmation refusée
+        $expiresAt = $anouncement->getReservationExpiresAt();
+        if ($expiresAt && $expiresAt <= new \DateTime()) {
+            $expirer->release($anouncement);
+            $em->flush();
+            return $this->json([
+                'error' => sprintf('Le délai de %d h pour récupérer cet objet est dépassé : l\'annonce est de nouveau disponible.', ReservationExpirer::HOURS),
+            ], 400);
         }
 
         $anouncement->setStatus(3);
         $anouncement->setRecoveredAt(new \DateTime());
+        $anouncement->setReservationExpiresAt(null);
         $donor = $anouncement->getUser();
 
         $newCredit = 0;
@@ -435,6 +461,7 @@ final class AnouncementController extends AbstractController
             'adress'    => $a->getAdress(),
             'pictures'  => json_decode($a->getPictures() ?? '[]', true),
             'donorName' => $a->getUser()?->getName() . ' ' . $a->getUser()?->getSurname(),
+            'reservationExpiresAt' => $a->getReservationExpiresAt()?->format(\DateTimeInterface::ATOM),
         ], $anouncements);
 
         return $this->json(['data' => $data]);

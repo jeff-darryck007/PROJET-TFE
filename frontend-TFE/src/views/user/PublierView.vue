@@ -117,8 +117,7 @@ async function submitArticle() {
         <div v-if="!canPublier" class="alert alert-error">
           <i class="fas fa-lock"></i>
           La publication d'annonces est réservée aux donateurs.
-          Vous pouvez devenir donateur depuis votre
-          <router-link to="/ProfileView">profil</router-link> (Informations du compte).
+          Cliquez sur <strong>« Devenir donateur »</strong> dans la barre de navigation, en haut de la page.
         </div>
 
         <form v-if="canPublier" @submit.prevent="submitArticle">

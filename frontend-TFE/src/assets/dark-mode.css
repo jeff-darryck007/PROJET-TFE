@@ -45,6 +45,11 @@ html.dark-mode .main-navbar {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
 
+/* Logo « TFE JEFF » : noir en mode clair, blanc en mode sombre */
+html.dark-mode .main-navbar .logo {
+  color: #fff;
+}
+
 html.dark-mode .nav-center a {
   color: #ccc;
 }
@@ -485,18 +490,39 @@ html.dark-mode .role-badge {
   color: #6ab0ff;
 }
 
-html.dark-mode .become-donor {
-  background: #14261b;
-  border-color: #1f5a33;
+/* Fenêtre « Devenir donateur » (barre de navigation) */
+html.dark-mode .donor-modal {
+  background: #1e1e1e;
 }
 
-html.dark-mode .become-donor h3,
-html.dark-mode .become-donor .become-donor-hint {
-  color: #4ade80;
+html.dark-mode .donor-modal h3 {
+  color: #fff;
 }
 
-html.dark-mode .become-donor p {
+/* Bouton « Devenir donateur » : noir en mode clair, blanc en mode sombre */
+html.dark-mode .main-navbar .btn-donor,
+html.dark-mode .donor-modal .donor-confirm {
+  background: #fff;
+  color: #111;
+}
+
+html.dark-mode .main-navbar .btn-donor:hover,
+html.dark-mode .donor-modal .donor-confirm:hover:not(:disabled) {
+  background: #ddd;
+}
+
+html.dark-mode .main-navbar .mobile-menu a.donor-link,
+html.dark-mode .main-navbar .mobile-menu a.donor-link i {
+  color: #fff;
+}
+
+html.dark-mode .donor-modal p {
   color: #c8c8c8;
+}
+
+html.dark-mode .donor-cancel {
+  background: #2a2a2a;
+  color: #e0e0e0;
 }
 
 /* Aide */

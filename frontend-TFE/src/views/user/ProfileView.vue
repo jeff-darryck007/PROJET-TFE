@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navbar from "../Navbar.vue";
 import Footer from "../Footer.vue";
 import "@fortawesome/fontawesome-free/css/all.css";
-import { fetchUserProfile, updateProfile, changePassword, becomeDonor } from "../../controller/controllerLogin.js";
+import { fetchUserProfile, updateProfile, changePassword } from "../../controller/controllerLogin.js";
 import { fetchMyAnouncements, deleteAnouncement, fetchMyRecoveredArticles } from "../../controller/controllerAnouncement.js";
 import { fetchNotifications, markAsRead, markAllAsRead, deleteNotification } from "../../controller/controllerNotification.js";
 import { URL_FOLDER_ANOUNCEMENT } from "../../server/config.js";
@@ -54,30 +54,6 @@ function notifIcon(type) {
 }
 function notifColor(type) {
   return NOTIF_ICONS[type]?.color ?? "#888";
-}
-
-// --- Devenir donateur (visiteurs uniquement) ---
-const isVisiteur    = computed(() => user.value?.roles?.includes("visiteur") ?? false);
-const confirmDonor  = ref(false); // 1er clic : demande de confirmation, 2e clic : changement
-const becomingDonor = ref(false);
-const justBecameDonor = ref(false);
-
-async function handleBecomeDonor() {
-  if (!confirmDonor.value) { confirmDonor.value = true; return; }
-  becomingDonor.value = true;
-  try {
-    const res = await becomeDonor(localStorage.getItem("token"));
-    user.value.roles = res.roles;
-    // Même format qu'à la connexion : le menu affichera "Publier" sur les prochaines pages
-    localStorage.setItem("roles", res.roles);
-    justBecameDonor.value = true;
-    flash("success", res.message);
-  } catch (e) {
-    flash("error", e.message);
-  } finally {
-    becomingDonor.value = false;
-    confirmDonor.value  = false;
-  }
 }
 
 function flash(type, msg) {
@@ -502,28 +478,6 @@ const menuItems = [
                   <span class="info-value">{{ user?.createAt ?? '—' }}</span>
                 </div>
               </div>
-
-              <!-- DEVENIR DONATEUR (visiteurs uniquement) -->
-              <div v-if="isVisiteur" class="become-donor">
-                <h3><i class="fas fa-hand-holding-heart"></i> Devenir donateur</h3>
-                <p>
-                  En devenant donateur, vous pourrez <strong>publier des annonces</strong> pour donner vos objets.
-                  Vous gardez votre compte, vos messages et vos favoris.
-                </p>
-                <button class="btn-submit" :disabled="becomingDonor" @click="handleBecomeDonor">
-                  <i :class="becomingDonor ? 'fas fa-spinner fa-spin' : 'fas fa-hand-holding-heart'"></i>
-                  {{ becomingDonor ? 'Changement en cours...' : confirmDonor ? 'Confirmer : devenir donateur' : 'Devenir donateur' }}
-                </button>
-                <p v-if="confirmDonor" class="become-donor-hint">Cliquez à nouveau pour confirmer.</p>
-              </div>
-
-              <!-- Juste après le changement : accès direct à la publication -->
-              <div v-if="justBecameDonor" class="become-donor become-donor--done">
-                <h3><i class="fas fa-check-circle"></i> Vous êtes maintenant donateur</h3>
-                <router-link to="/PublierView" class="btn-submit">
-                  <i class="fas fa-plus"></i> Publier ma première annonce
-                </router-link>
-              </div>
             </div>
           </div>
 
@@ -819,7 +773,7 @@ const menuItems = [
                     <div class="step-num">5</div>
                     <div class="step-content">
                       <h4><i class="fas fa-user-plus"></i> Devenir donateur</h4>
-                      <p>Pour pouvoir publier des annonces, ouvrez <strong>"Informations du compte"</strong> dans votre profil et cliquez sur <strong>"Devenir donateur"</strong>. Vous gardez votre compte, vos messages et vos favoris.</p>
+                      <p>Pour pouvoir publier des annonces, cliquez sur le bouton vert <strong>"Devenir donateur"</strong> dans la barre de navigation, en haut de la page. Vous gardez votre compte, vos messages et vos favoris.</p>
                     </div>
                   </div>
                 </div>
@@ -1129,34 +1083,6 @@ const menuItems = [
   font-weight: 600;
   margin-left: 4px;
 }
-
-/* DEVENIR DONATEUR */
-.become-donor {
-  margin-top: 24px;
-  padding: 20px;
-  border-radius: 12px;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-}
-.become-donor h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  color: #16a34a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.become-donor p {
-  margin: 0 0 16px;
-  font-size: 14px;
-  color: #555;
-  line-height: 1.5;
-}
-.become-donor .btn-submit { background: #16a34a; text-decoration: none; }
-.become-donor .btn-submit:hover:not(:disabled) { background: #12813b; }
-.become-donor .become-donor-hint { margin: 8px 0 0; font-size: 13px; color: #16a34a; text-align: center; }
-.become-donor--done h3 { margin-bottom: 14px; }
-
 .credit { font-weight: 700; color: #0a7d2c; }
 
 /* AIDE - ONGLETS */

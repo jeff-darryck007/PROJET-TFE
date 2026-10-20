@@ -1055,9 +1055,6 @@ async function handleAdminDelete(id) {
               <p class="card-date">
                 <i class="fas fa-calendar-alt"></i> {{ formatDate(a.createAt) }}
               </p>
-              <p class="card-donor">
-                <i class="fas fa-user"></i> {{ a.donorName }}
-              </p>
               <button
                 class="card-btn"
                 @click="goToDetail(a.id)"
@@ -1591,8 +1588,7 @@ async function handleAdminDelete(id) {
 }
 
 .card-location,
-.card-date,
-.card-donor {
+.card-date {
   font-size: 12px;
   color: #888;
   margin: 0;
@@ -1601,8 +1597,7 @@ async function handleAdminDelete(id) {
   gap: 5px;
 }
 .card-location i,
-.card-date i,
-.card-donor i { color: #0054a6; font-size: 11px; }
+.card-date i { color: #0054a6; font-size: 11px; }
 
 .card-btn {
   margin-top: auto;

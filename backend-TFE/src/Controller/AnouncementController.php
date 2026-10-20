@@ -201,7 +201,7 @@ final class AnouncementController extends AbstractController
             'createAt'    => $a->getCreateAt()?->format('Y-m-d'),
             'pictures'    => json_decode($a->getPictures() ?? '[]', true),
             'userId'      => $a->getUser()?->getId(),
-            'donorName'   => $a->getUser()?->getName() . ' ' . $a->getUser()?->getSurname(),
+            // Pas de nom du donneur dans la liste publique : il n'apparaît que sur la page de l'annonce
         ], $anouncements);
 
         return $this->json(['success' => true, 'data' => $data]);

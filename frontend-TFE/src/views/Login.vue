@@ -94,6 +94,10 @@
           </div>
 
           <!-- Erreur -->
+          <div v-if="sessionExpired && !errorMessage" class="msg-error">
+            <i class="fas fa-clock"></i> Votre session a expiré, veuillez vous reconnecter.
+          </div>
+
           <div v-if="errorMessage" class="msg-error">
             <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
           </div>
@@ -172,11 +176,14 @@
 
 <script setup>
 import { ref, watch } from "vue"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import { loginUser, sendBannedAppeal } from "../controller/controllerLogin.js"
 import DarkToggle from "../components/DarkToggle.vue"
 
 const router = useRouter()
+const route = useRoute()
+// Arrivée ici après expiration de la session (1 h) : on l'explique à l'utilisateur
+const sessionExpired = ref(route.query.expired === "1")
 
 const email = ref("")
 const password = ref("")

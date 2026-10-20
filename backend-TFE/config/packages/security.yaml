@@ -14,7 +14,7 @@ security:
                 property: email
 
     firewalls:
-        # 🔐 LOGIN (JWT)
+        # LOGIN (JWT)
         login:
             pattern: ^/api/login$
             stateless: true
@@ -26,19 +26,19 @@ security:
                 success_handler: App\Security\JWTAuthenticationSuccessHandler
                 failure_handler: App\Security\AuthenticationFailureHandler
 
-        # 🔐 API protégée par JWT
+        # API protégée par JWT
         api:
             pattern: ^/api
             stateless: true
             user_checker: App\Security\UserChecker
             jwt: ~
 
-        # 🔓 DEV
+        # DEV
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
 
-        # 🔓 MAIN
+        # MAIN
         main:
             lazy: true
             provider: app_user_provider

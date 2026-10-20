@@ -82,7 +82,7 @@ final class ContactController extends AbstractController
 
         $notif = new Notification();
         $notif->setText(sprintf(
-            '⚠️ %s %s (compte banni) a envoyé un message de contestation.',
+            '%s %s (compte banni) a envoyé un message de contestation.',
             $bannedUser->getName(),
             $bannedUser->getSurname()
         ));

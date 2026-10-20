@@ -232,7 +232,7 @@ final class AdminController extends AbstractController
 
         // Notifier l'utilisateur qu'il peut se reconnecter
         $notif = new Notification();
-        $notif->setText('✅ Votre compte a été réactivé par l\'administrateur. Vous pouvez vous reconnecter.');
+        $notif->setText('Votre compte a été réactivé par l\'administrateur. Vous pouvez vous reconnecter.');
         $notif->setType('status-update');
         $notif->setIsRead(false);
         $notif->setCreateAt(new \DateTime());

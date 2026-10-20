@@ -268,12 +268,28 @@ final class AnouncementController extends AbstractController
             return $this->json(['error' => 'Non autorisé'], 403);
         }
 
-        $ids = array_map(fn(array $row) => (int) $row['userId'], $commentRepo->findRequestersForAnouncement($id));
-        // Une seule requête pour tous les demandeurs
-        $data = array_map(fn(Users $u) => [
-            'id'   => $u->getId(),
-            'name' => $u->getName() . ' ' . $u->getSurname(),
-        ], $ids ? $usersRepo->findBy(['id' => $ids]) : []);
+        // Lignes déjà triées par date du premier message (le premier à avoir contacté en tête)
+        $rows = $commentRepo->findRequestersForAnouncement($id);
+        $ids  = array_map(fn(array $row) => (int) $row['userId'], $rows);
+        // Une seule requête pour tous les demandeurs (findBy ne garantit pas l'ordre : on l'indexe par id)
+        $users = [];
+        foreach ($ids ? $usersRepo->findBy(['id' => $ids]) : [] as $u) {
+            $users[$u->getId()] = $u;
+        }
+
+        $data = [];
+        foreach ($rows as $row) {
+            $u = $users[(int) $row['userId']] ?? null;
+            if (!$u) {
+                continue;
+            }
+            $data[] = [
+                'id'             => $u->getId(),
+                'name'           => $u->getName() . ' ' . $u->getSurname(),
+                'rank'           => count($data) + 1,
+                'firstContactAt' => (new \DateTime($row['firstContact']))->format(\DateTimeInterface::ATOM),
+            ];
+        }
 
         return $this->json(['requesters' => $data]);
     }

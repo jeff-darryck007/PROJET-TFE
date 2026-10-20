@@ -154,12 +154,34 @@ function donorInitials(name) {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
+// Demandeurs triés par date de premier contact (le serveur renvoie le premier arrivé en tête)
+const loadingRequesters = ref(false)
 async function loadRequesters() {
-  if (requesters.value.length > 0) return
+  loadingRequesters.value = true
   try {
     const data = await fetchRequesters(anouncement.value.id, token)
     requesters.value = data.requesters ?? []
+    // Le premier à avoir contacté est présélectionné (le donneur peut en choisir un autre)
+    if (!requesters.value.some(r => r.id === selectedRequester.value)) {
+      selectedRequester.value = requesters.value[0]?.id ?? null
+    }
   } catch { /* silencieux */ }
+  finally { loadingRequesters.value = false }
+}
+
+// Liste chargée automatiquement dès que le donneur voit son annonce disponible
+// (à l'ouverture, après une annulation de réservation ou une expiration du délai)
+watch(
+  () => isOwner.value && anouncement.value?.status === 1,
+  (show) => { if (show) loadRequesters() },
+  { immediate: true }
+)
+
+function formatContact(iso) {
+  const d = new Date(iso)
+  if (isNaN(d)) return ''
+  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: 'short' }) + ' à ' +
+    d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 }
 
 async function handleReserve(userId) {
@@ -410,23 +432,34 @@ async function handleDelete() {
 
               <!-- Statut 1 : choisir un demandeur -->
               <template v-if="anouncement.status === 1">
-                <p class="reserve-hint">Sélectionnez la personne qui va récupérer l'objet pour la notifier.</p>
-                <button class="btn-load-req" @click="loadRequesters" v-if="requesters.length === 0">
-                  <i class="fas fa-users"></i> Voir les demandeurs
-                </button>
-                <div v-if="requesters.length === 0 && false" class="reserve-empty">
-                  Aucun demandeur pour le moment.
+                <p class="reserve-hint">
+                  Sélectionnez la personne qui va récupérer l'objet pour la notifier.
+                  Les demandeurs sont classés par ordre d'arrivée.
+                </p>
+                <div v-if="loadingRequesters && requesters.length === 0" class="reserve-empty">
+                  <i class="fas fa-spinner fa-spin"></i> Chargement des demandeurs...
+                </div>
+                <div v-else-if="requesters.length === 0" class="reserve-empty">
+                  <i class="fas fa-inbox"></i>
+                  Aucun demandeur pour le moment. Les personnes qui vous écrivent au sujet de cet objet apparaîtront ici.
                 </div>
                 <ul v-if="requesters.length > 0" class="requester-list">
                   <li
                     v-for="r in requesters"
                     :key="r.id"
                     class="requester-item"
-                    :class="{ selected: selectedRequester === r.id }"
+                    :class="{ selected: selectedRequester === r.id, first: r.rank === 1 }"
                     @click="selectedRequester = r.id"
                   >
+                    <span class="req-rank">{{ r.rank }}</span>
                     <div class="req-avatar">{{ r.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() }}</div>
-                    <span class="req-name">{{ r.name }}</span>
+                    <div class="req-info">
+                      <span class="req-name">{{ r.name }}</span>
+                      <span v-if="r.rank === 1" class="req-first">
+                        <i class="fas fa-trophy"></i> 1er à vous avoir contacté
+                      </span>
+                      <span class="req-date"><i class="far fa-clock"></i> Contacté le {{ formatContact(r.firstContactAt) }}</span>
+                    </div>
                     <i v-if="selectedRequester === r.id" class="fas fa-check req-check"></i>
                   </li>
                 </ul>
@@ -947,24 +980,6 @@ async function handleDelete() {
   gap: 8px;
 }
 
-.btn-load-req {
-  width: 100%;
-  padding: 10px;
-  background: #f0fdf4;
-  border: 1.5px dashed #86efac;
-  border-radius: 9px;
-  color: #16a34a;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background 0.2s;
-}
-.btn-load-req:hover { background: #dcfce7; }
 
 .requester-list { list-style: none; padding: 0; margin: 0 0 12px 0; display: flex; flex-direction: column; gap: 8px; }
 
@@ -994,7 +1009,48 @@ async function handleDelete() {
   justify-content: center;
   flex-shrink: 0;
 }
-.req-name { flex: 1; font-size: 14px; font-weight: 600; color: #222; }
+.req-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.req-name { font-size: 14px; font-weight: 600; color: #222; }
+.req-date { font-size: 12px; color: #6b7280; }
+.req-date i { margin-right: 3px; }
+.req-rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e8ecf0;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+/* Premier demandeur : mis en avant */
+.requester-item.first { border-color: #f1b800; background: #fffbea; }
+.requester-item.first .req-rank { background: #f1b800; color: #111; }
+/* la sélection reste visible même sur le premier demandeur */
+.requester-item.first.selected { border-color: #16a34a; background: #dcfce7; }
+.req-first {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+.reserve-empty {
+  font-size: 13px;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.reserve-empty i { margin-right: 6px; }
 .req-check { color: #16a34a; font-size: 16px; }
 
 .btn-reserve {

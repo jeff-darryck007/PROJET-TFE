@@ -752,3 +752,15 @@ html.dark-mode .recovery-countdown.expired {
   border-color: #7f1d1d;
   color: #f87171;
 }
+
+/* Liste des demandeurs (gestion de la récupération) */
+html.dark-mode .requester-item { border-color: #333; background: #1e1e1e; }
+html.dark-mode .requester-item.first { border-color: #a37c00; background: #2a2412; }
+html.dark-mode .requester-item.selected,
+html.dark-mode .requester-item.first.selected { border-color: #16a34a; background: #14261b; }
+html.dark-mode .req-name { color: #e0e0e0; }
+html.dark-mode .req-date { color: #9ca3af; }
+html.dark-mode .req-rank { background: #333; color: #e0e0e0; }
+html.dark-mode .requester-item.first .req-rank { background: #f1b800; color: #111; }
+html.dark-mode .req-first { background: #3a2f0b; color: #fbbf24; }
+html.dark-mode .reserve-empty { background: #1e1e1e; border-color: #444; color: #aaa; }

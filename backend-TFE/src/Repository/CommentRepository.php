@@ -47,11 +47,14 @@ class CommentRepository extends ServiceEntityRepository
     // Liste des utilisateurs uniques qui ont envoyé un message sur une annonce
     public function findRequestersForAnouncement(int $anouncementId): array
     {
+        // Un demandeur par fil de discussion, trié par date de son PREMIER message (premier arrivé en tête)
         return $this->createQueryBuilder('c')
-            ->select('DISTINCT IDENTITY(c.threadUser) as userId')
-            ->join('c.threadUser', 'tu')
+            ->select('IDENTITY(c.threadUser) AS userId, MIN(c.date) AS firstContact')
             ->where('c.anouncement = :aid')
             ->andWhere('c.threadUser IS NOT NULL')
+            ->andWhere('IDENTITY(c.user) = IDENTITY(c.threadUser)') // messages écrits par le demandeur lui-même
+            ->groupBy('c.threadUser')
+            ->orderBy('firstContact', 'ASC')
             ->setParameter('aid', $anouncementId)
             ->getQuery()
             ->getScalarResult();

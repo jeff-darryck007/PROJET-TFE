@@ -85,6 +85,21 @@ export async function reserveAnouncement(id, reservedForUserId, token) {
   }
 }
 
+// Annuler une réservation : par le donneur ou par la personne qui a réservé (l'autre est notifiée)
+export async function cancelReservation(id, token) {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/api/anouncement/${id}/cancel-reservation`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    const msg = error.response?.data?.error;
+    throw new Error(msg || "Erreur lors de l'annulation de la réservation");
+  }
+}
+
 export async function validateRecovery(id, token) {
   try {
     const response = await axios.post(

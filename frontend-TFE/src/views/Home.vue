@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navbar from "./Navbar.vue";
 import Footer from "./Footer.vue";
-import { fetchAnouncements, fetchPendingRecoveries, validateRecovery, fetchPendingAdminAnouncements, approveAnouncement, rejectAnouncement, fetchAllAdminAnouncements, deleteAnouncement } from "../controller/controllerAnouncement.js";
+import { fetchAnouncements, fetchPendingRecoveries, validateRecovery, cancelReservation, fetchPendingAdminAnouncements, approveAnouncement, rejectAnouncement, fetchAllAdminAnouncements, deleteAnouncement } from "../controller/controllerAnouncement.js";
 import { toggleFavorite, fetchLikedIds } from "../controller/controllerFavorite.js";
 import { fetchReportedComments, deleteAdminComment } from "../controller/controllerComment.js";
 import { fetchUserProfile, fetchAdminUsers, fetchAdminStats, banUser, unbanUser } from "../controller/controllerLogin.js";
@@ -284,6 +284,27 @@ async function handleValidate(id) {
   }
 }
 
+// Le receveur annule sa réservation (2e clic pour confirmer) : le donneur est prévenu
+const confirmCancelId = ref(null);
+const cancellingId    = ref(null);
+async function handleCancelReservation(id) {
+  if (confirmCancelId.value !== id) { confirmCancelId.value = id; return; }
+  cancellingId.value = id;
+  validateError.value = "";
+  try {
+    await cancelReservation(id, token);
+    pendingRecoveries.value = pendingRecoveries.value.filter(r => r.id !== id);
+    const a = anouncements.value.find(a => a.id === id);
+    if (a) a.status = 1;
+  } catch (e) {
+    validateError.value = e.message;
+    setTimeout(() => { validateError.value = ""; }, 4000);
+  } finally {
+    cancellingId.value = null;
+    confirmCancelId.value = null;
+  }
+}
+
 function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("idUser");
@@ -506,6 +527,15 @@ async function handleAdminDelete(id) {
                 >
                   <i :class="validating === r.id ? 'fas fa-spinner fa-spin' : 'fas fa-check-circle'"></i>
                   {{ validating === r.id ? 'Validation...' : 'Oui, je confirme la récupération' }}
+                </button>
+                <button
+                  v-if="recoveryLeft(r) !== 0"
+                  class="btn-cancel-mine"
+                  :disabled="cancellingId === r.id"
+                  @click="handleCancelReservation(r.id)"
+                >
+                  <i :class="cancellingId === r.id ? 'fas fa-spinner fa-spin' : 'fas fa-times-circle'"></i>
+                  {{ confirmCancelId === r.id ? 'Confirmer l’annulation ?' : 'Annuler ma réservation' }}
                 </button>
               </div>
             </div>
@@ -1168,6 +1198,26 @@ async function handleAdminDelete(id) {
 }
 .btn-validate:hover:not(:disabled) { background: #15803d; }
 .btn-validate:disabled { background: #86efac; cursor: not-allowed; }
+
+/* Annuler sa réservation (receveur) */
+.btn-cancel-mine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #b45309;
+  border: 1.5px solid #fcd34d;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-cancel-mine:hover:not(:disabled) { background: #fffbeb; border-color: #d97706; }
+.btn-cancel-mine:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* === LAYOUT === */
 .main-layout {

@@ -22,6 +22,11 @@ const TYPE_ICON = {
   "new-article":    "fas fa-bullhorn",
   "message":        "fas fa-envelope",
   "status-update":  "fas fa-sync-alt",
+  "reservation":           "fas fa-handshake",
+  "reservation-cancelled": "fas fa-ban",
+  "reservation-expired":   "fas fa-hourglass-end",
+  "credit":                "fas fa-coins",
+  "report":                "fas fa-flag",
 };
 
 onMounted(async () => {
@@ -68,12 +73,17 @@ async function handleDelete(id) {
   } catch { /* silencieux */ }
 }
 
-function navigate(notif) {
-  handleMarkRead(notif);
-  if (notif.type === "message" && notif.anouncementId) {
+// Clic sur une notification : marquée comme lue, puis ouverture de l'annonce concernée.
+// Les messages de la boîte de contact interne (pas de page d'annonce) ouvrent la messagerie.
+async function navigate(notif) {
+  // on attend le marquage avant de changer de page, pour qu'il ne soit pas interrompu
+  if (!notif.isRead) await handleMarkRead(notif);
+  // Annonce plus disponible (donnée, refusée…) : la mention « N'est plus disponible » suffit
+  if (notif.link && !notif.available) return;
+  if (notif.link) {
+    router.push(`/annonce/${notif.anouncementId}`);
+  } else if (notif.type === "message" && notif.anouncementId) {
     router.push({ name: "Message-View", query: { annonce: notif.anouncementId } });
-  } else if (notif.anouncementId) {
-    router.push("/");
   }
 }
 
@@ -139,9 +149,12 @@ function formatDate(str) {
             </div>
 
             <!-- CONTENU (cliquable) -->
-            <div class="notif-body" @click="navigate(n)">
+            <div class="notif-body" :class="{ 'no-link': n.link && !n.available }" @click="navigate(n)">
               <p class="notif-text">{{ n.text }}</p>
               <span class="notif-date">{{ formatDate(n.createAt) }}</span>
+              <span v-if="n.link && !n.available" class="notif-unavailable">
+                <i class="fas fa-ban"></i> N'est plus disponible
+              </span>
             </div>
 
             <!-- ACTIONS -->
@@ -284,6 +297,11 @@ h2 {
 .icon-new-article   { background: #e8f0fb; color: #0054a6; }
 .icon-message       { background: #fef9c3; color: #ca8a04; }
 .icon-status-update { background: #dcfce7; color: #16a34a; }
+.icon-reservation           { background: #fef3c7; color: #d97706; }
+.icon-reservation-cancelled { background: #fee2e2; color: #dc2626; }
+.icon-reservation-expired   { background: #fee2e2; color: #dc2626; }
+.icon-credit                { background: #dcfce7; color: #16a34a; }
+.icon-report                { background: #fee2e2; color: #dc2626; }
 
 /* CORPS */
 .notif-body {
@@ -304,6 +322,18 @@ h2 {
 .notif-date {
   font-size: 12px;
   color: #aaa;
+}
+
+/* Annonce plus disponible : pas de lien, simple mention */
+.notif-body.no-link { cursor: default; }
+.notif-unavailable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 /* ACTIONS */

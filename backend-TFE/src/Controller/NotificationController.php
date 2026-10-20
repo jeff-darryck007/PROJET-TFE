@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Anouncement;
 use App\Entity\Notification;
 use App\Entity\Users;
 use App\Repository\NotificationRepository;
@@ -24,10 +25,28 @@ final class NotificationController extends AbstractController
             return $this->json(['error' => 'Non authentifié'], 401);
         }
 
-        $notifications = $repo->findBy(
-            ['user' => $user],
-            ['createAt' => 'DESC']
-        );
+        // Annonces chargées dans la même requête (évite une requête par notification pour le champ « link »)
+        $notifications = $repo->createQueryBuilder('n')
+            ->addSelect('a')
+            ->leftJoin('n.anouncement', 'a')
+            ->where('n.user = :user')
+            ->setParameter('user', $user)
+            ->orderBy('n.createAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $isAdmin = in_array('admin', $user->getRoles(), true);
+        // Annonce encore consultable par cet utilisateur : disponible (1) ou réservée (2) pour tous ;
+        // sinon (en attente, donnée, refusée) seulement pour le donneur, la personne concernée ou un admin
+        $available = function (?Anouncement $a) use ($user, $isAdmin): bool {
+            if (!$a) {
+                return false;
+            }
+            return in_array($a->getStatus(), [1, 2], true)
+                || $isAdmin
+                || $a->getUser()?->getId() === $user->getId()
+                || $a->getReservedForUser()?->getId() === $user->getId();
+        };
 
         $data = array_map(fn(Notification $n) => [
             'id'             => $n->getId(),
@@ -36,6 +55,10 @@ final class NotificationController extends AbstractController
             'isRead'         => $n->isRead(),
             'createAt'       => $n->getCreateAt()->format('Y-m-d H:i:s'),
             'anouncementId'  => $n->getAnouncement()?->getId(),
+            // true si la notification concerne une annonce (pas la boîte de contact interne)
+            'link'           => $n->getAnouncement() !== null && $n->getAnouncement()->getCategorie() !== '__contact__',
+            // false si l'annonce n'est plus disponible pour cet utilisateur → « N'est plus disponible »
+            'available'      => $available($n->getAnouncement()),
         ], $notifications);
 
         $unreadCount = count(array_filter($data, fn($n) => !$n['isRead']));

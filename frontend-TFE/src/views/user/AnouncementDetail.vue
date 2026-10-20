@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../Navbar.vue'
 import Footer from '../Footer.vue'
 import '@fortawesome/fontawesome-free/css/all.css'
-import { fetchAnouncementById, deleteAnouncement, fetchRequesters, reserveAnouncement, fetchMyRecoveredArticles } from '../../controller/controllerAnouncement.js'
+import { fetchAnouncementById, deleteAnouncement, fetchRequesters, reserveAnouncement, cancelReservation, fetchMyRecoveredArticles } from '../../controller/controllerAnouncement.js'
 import { toggleFavorite, fetchLikedIds } from '../../controller/controllerFavorite.js'
 import { fetchPublicComments, sendPublicComment, reportComment } from '../../controller/controllerComment.js'
 import { URL_FOLDER_ANOUNCEMENT } from '../../server/config.js'
@@ -200,17 +200,28 @@ async function handleReserve(userId) {
   }
 }
 
+// Annulation de la réservation, par le donneur ou par la personne qui a réservé.
+// 1er clic : demande de confirmation ; 2e clic : annulation (l'autre partie est notifiée).
+const confirmCancel = ref(false)
+const cancelInfo    = ref('')
 async function handleCancelReserve() {
+  if (!confirmCancel.value) { confirmCancel.value = true; return }
   reserving.value = true
+  reserveError.value = ''
   try {
-    const res = await reserveAnouncement(anouncement.value.id, null, token)
+    const res = await cancelReservation(anouncement.value.id, token)
+    const wasMine = isReservedForMe.value
     anouncement.value.status = res.status
     anouncement.value.reservedForUserId = null
     anouncement.value.reservationExpiresAt = null
+    cancelInfo.value = wasMine
+      ? 'Votre réservation a été annulée. Le donneur a été prévenu.'
+      : 'Réservation annulée. La personne concernée a été prévenue.'
   } catch (e) {
     reserveError.value = e.message
   } finally {
     reserving.value = false
+    confirmCancel.value = false
   }
 }
 
@@ -360,6 +371,9 @@ async function handleDelete() {
 
             <!-- ACTIONS -->
             <div class="card-section actions-card">
+              <div v-if="cancelInfo" class="cancel-info">
+                <i class="fas fa-check-circle"></i> {{ cancelInfo }}
+              </div>
 
               <!-- Propriétaire : supprimer l'annonce -->
               <template v-if="isOwner">
@@ -391,6 +405,14 @@ async function handleDelete() {
                     <span>Délai dépassé : l'annonce redevient disponible.</span>
                   </template>
                 </div>
+                <template v-if="isReservedForMe && reservationLeft !== 0">
+                  <button class="btn-cancel-reserve btn-cancel-mine" :disabled="reserving" @click="handleCancelReserve">
+                    <i :class="reserving ? 'fas fa-spinner fa-spin' : 'fas fa-times-circle'"></i>
+                    {{ confirmCancel ? 'Confirmer l’annulation ?' : 'Annuler ma réservation' }}
+                  </button>
+                  <p v-if="confirmCancel" class="del-hint">Le donneur sera prévenu et pourra réserver l'objet pour quelqu'un d'autre.</p>
+                  <p v-if="reserveError" class="del-hint cancel-error">{{ reserveError }}</p>
+                </template>
                 <div v-if="isLoggedIn && !canContact" class="contact-limit-msg">
                   <i class="fas fa-lock"></i>
                   Limite atteinte : {{ recoveredThisMonth }}/5 récupérations ce mois-ci.<br />
@@ -489,8 +511,10 @@ async function handleDelete() {
                   Délai dépassé : l'annonce redevient disponible.
                 </p>
                 <button class="btn-cancel-reserve" :disabled="reserving" @click="handleCancelReserve">
-                  <i class="fas fa-unlock"></i> Remettre en disponible
+                  <i :class="reserving ? 'fas fa-spinner fa-spin' : 'fas fa-unlock'"></i>
+                  {{ confirmCancel ? 'Confirmer l’annulation ?' : 'Annuler la réservation' }}
                 </button>
+                <p v-if="confirmCancel" class="del-hint">La personne sera prévenue et l'annonce redeviendra disponible.</p>
               </template>
             </div>
 
@@ -1122,6 +1146,21 @@ async function handleDelete() {
   transition: all 0.2s;
 }
 .btn-cancel-reserve:hover:not(:disabled) { background: #fffbeb; border-color: #d97706; }
+/* Receveur : annuler sa propre réservation (sous le compte à rebours) */
+.btn-cancel-mine { margin-bottom: 10px; }
+.cancel-error { color: #dc2626; }
+.cancel-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
 
 /* ===== COMMENTAIRES ===== */
 .comments-section {

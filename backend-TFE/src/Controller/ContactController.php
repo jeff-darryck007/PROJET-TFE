@@ -81,11 +81,7 @@ final class ContactController extends AbstractController
         $em->persist($comment);
 
         $notif = new Notification();
-        $notif->setText(sprintf(
-            '%s %s (compte banni) a envoyé un message de contestation.',
-            $bannedUser->getName(),
-            $bannedUser->getSurname()
-        ));
+        $notif->setText('Un compte banni a envoyé un message de contestation.');
         $notif->setType('message');
         $notif->setIsRead(false);
         $notif->setCreateAt(new \DateTime());
@@ -164,11 +160,7 @@ final class ContactController extends AbstractController
         // Notifier l'admin (propriétaire du fil) quand c'est l'utilisateur qui écrit
         if ($admin->getId() !== $currentUser->getId()) {
             $notif = new Notification();
-            $notif->setText(sprintf(
-                'Nouveau message de support de %s %s.',
-                $currentUser->getName(),
-                $currentUser->getSurname()
-            ));
+            $notif->setText('Nouveau message de support.');
             $notif->setType('message');
             $notif->setIsRead(false);
             $notif->setCreateAt(new \DateTime());

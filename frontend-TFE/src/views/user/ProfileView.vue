@@ -45,6 +45,8 @@ const NOTIF_ICONS = {
   "new-article": { icon: "fas fa-bullhorn",       color: "#0054a6" },
   "message":     { icon: "fas fa-envelope",        color: "#0054a6" },
   "reservation": { icon: "fas fa-handshake",       color: "#d97706" },
+  "reservation-cancelled": { icon: "fas fa-ban",           color: "#dc2626" },
+  "reservation-expired":   { icon: "fas fa-hourglass-end", color: "#dc2626" },
   "credit":      { icon: "fas fa-coins",           color: "#16a34a" },
   "report":      { icon: "fas fa-flag",            color: "#dc2626" },
 };
@@ -95,6 +97,16 @@ async function loadNotifications() {
     unreadCount.value   = data.unreadCount   ?? 0;
   } catch { /* silencieux */ }
   finally { loadingNotifs.value = false; }
+}
+
+// Clic sur une notification : marquée comme lue puis ouverture de l'annonce concernée
+// (messagerie pour les messages de la boîte de contact interne, qui n'a pas de page d'annonce)
+async function openNotif(n) {
+  // on attend le marquage avant de changer de page, pour qu'il ne soit pas interrompu
+  if (!n.isRead) await handleMarkRead(n.id);
+  if (n.link && !n.available) return; // annonce plus disponible : la mention suffit
+  if (n.link) router.push(`/annonce/${n.anouncementId}`);
+  else if (n.type === "message" && n.anouncementId) router.push(`/MessageView?annonce=${n.anouncementId}`);
 }
 
 async function handleMarkRead(id) {
@@ -670,17 +682,13 @@ const menuItems = [
                   <div class="notif-icon-wrap" :style="{ background: notifColor(n.type) + '18', color: notifColor(n.type) }">
                     <i :class="notifIcon(n.type)"></i>
                   </div>
-                  <div class="notif-body">
+                  <div class="notif-body" :class="{ clickable: (n.link && n.available) || (!n.link && n.type === 'message' && n.anouncementId) }" @click="openNotif(n)">
                     <p class="notif-text">{{ n.text }}</p>
                     <div class="notif-meta">
                       <span class="notif-time">{{ formatNotifDate(n.createAt) }}</span>
-                      <router-link
-                        v-if="n.anouncementId"
-                        :to="n.type === 'message' ? `/MessageView?annonce=${n.anouncementId}` : `/annonce/${n.anouncementId}`"
-                        class="notif-link"
-                      >
-                        {{ n.type === 'message' ? 'Voir le message' : 'Voir l\'annonce' }}
-                      </router-link>
+                      <span v-if="n.link && !n.available" class="notif-unavailable"><i class="fas fa-ban"></i> N'est plus disponible</span>
+                      <span v-else-if="n.link" class="notif-link">Voir l’annonce</span>
+                      <span v-else-if="n.type === 'message' && n.anouncementId" class="notif-link">Voir le message</span>
                     </div>
                   </div>
                   <div class="notif-actions">
@@ -1585,6 +1593,10 @@ const menuItems = [
   text-decoration: none;
 }
 .notif-link:hover { text-decoration: underline; }
+/* Notification cliquable : ouvre l'annonce concernée */
+.notif-body.clickable { cursor: pointer; }
+.notif-unavailable { font-size: 12px; font-weight: 600; color: #6b7280; }
+.notif-body.clickable:hover .notif-link { text-decoration: underline; }
 
 /* NOTIFICATIONS - ACTIONS */
 .notif-actions {

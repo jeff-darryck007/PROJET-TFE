@@ -121,12 +121,7 @@ final class AnouncementController extends AbstractController
                     continue;
                 }
                 $notif = new Notification();
-                $notif->setText(sprintf(
-                    'Nouvelle annonce : "%s" publiée par %s %s.',
-                    $anouncement->getTitle(),
-                    $user->getName(),
-                    $user->getSurname()
-                ));
+                $notif->setText(sprintf('Nouvelle annonce : "%s".', mb_strimwidth((string) $anouncement->getTitle(), 0, 80, '…')));
                 $notif->setType('new-article');
                 $notif->setIsRead(false);
                 $notif->setCreateAt(new \DateTime());
@@ -357,10 +352,8 @@ final class AnouncementController extends AbstractController
 
         $notif = new Notification();
         $notif->setText(sprintf(
-            '"%s" vous a été réservé par %s %s. Vous avez %d h pour le récupérer (avant le %s) et confirmer depuis votre accueil.',
+            '"%s" vous a été réservé. Vous avez %d h pour le récupérer (avant le %s) et confirmer depuis votre accueil.',
             mb_strimwidth((string) $anouncement->getTitle(), 0, 60, '…'),
-            $user->getName(),
-            $user->getSurname(),
             ReservationExpirer::HOURS,
             $deadline->format('d/m à H:i')
         ));
@@ -379,6 +372,60 @@ final class AnouncementController extends AbstractController
             'reservedForName'      => $reservedForUser->getName() . ' ' . $reservedForUser->getSurname(),
             'reservationExpiresAt' => $deadline->format(\DateTimeInterface::ATOM),
         ]);
+    }
+
+    // ANNULER UNE RÉSERVATION (statut 2 → 1) : par le donneur OU par la personne qui a réservé.
+    // L'autre personne est prévenue par une notification.
+    #[Route('/anouncement/{id}/cancel-reservation', name: 'cancel_reservation', methods: ['POST'])]
+    public function cancelReservation(
+        int $id,
+        AnouncementRepository $repo,
+        EntityManagerInterface $em,
+        #[CurrentUser] ?Users $user
+    ): JsonResponse {
+        if (!$user) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        $anouncement = $repo->find($id);
+        if (!$anouncement) {
+            return $this->json(['error' => 'Annonce introuvable'], 404);
+        }
+        if ($anouncement->getStatus() !== 2 || !$anouncement->getReservedForUser()) {
+            return $this->json(['error' => 'Cette annonce n\'est pas réservée.'], 400);
+        }
+
+        $donor       = $anouncement->getUser();
+        $beneficiary = $anouncement->getReservedForUser();
+        $isDonor       = $donor?->getId() === $user->getId();
+        $isBeneficiary = $beneficiary->getId() === $user->getId();
+        if (!$isDonor && !$isBeneficiary) {
+            return $this->json(['error' => 'Non autorisé'], 403);
+        }
+
+        $anouncement->setStatus(1);
+        $anouncement->setReservedForUser(null);
+        $anouncement->setReservationExpiresAt(null);
+
+        // Prévenir l'autre partie (texte limité à 255 caractères : titre raccourci)
+        $title     = mb_strimwidth((string) $anouncement->getTitle(), 0, 60, '…');
+        $recipient = $isDonor ? $beneficiary : $donor;
+        if ($recipient) {
+            $notif = new Notification();
+            $notif->setText($isDonor
+                ? sprintf('Réservation annulée par le donneur pour "%s".', $title)
+                : sprintf('Réservation annulée pour "%s" : votre annonce est de nouveau disponible.', $title)
+            );
+            $notif->setType('reservation-cancelled');
+            $notif->setIsRead(false);
+            $notif->setCreateAt(new \DateTime());
+            $notif->setUser($recipient);
+            $notif->setAnouncement($anouncement);
+            $em->persist($notif);
+        }
+        $em->flush();
+
+        return $this->json(['message' => 'Réservation annulée', 'status' => 1]);
     }
 
     // VALIDER LA RÉCUPÉRATION (statut → 3, crédits donateur +10)
@@ -431,9 +478,7 @@ final class AnouncementController extends AbstractController
 
             $notif = new Notification();
             $notif->setText(sprintf(
-                '%s %s a confirmé la récupération de "%s". +10 crédits !',
-                $user->getName(),
-                $user->getSurname(),
+                'Récupération confirmée pour "%s". +10 crédits !',
                 $anouncement->getTitle()
             ));
             $notif->setType('credit');
@@ -621,10 +666,8 @@ final class AnouncementController extends AbstractController
             }
             $notif = new Notification();
             $notif->setText(sprintf(
-                'Nouvelle annonce : "%s" publiée par %s %s.',
-                $anouncement->getTitle(),
-                $donor?->getName(),
-                $donor?->getSurname()
+                'Nouvelle annonce : "%s".',
+                mb_strimwidth((string) $anouncement->getTitle(), 0, 80, '…')
             ));
             $notif->setType('new-article');
             $notif->setIsRead(false);

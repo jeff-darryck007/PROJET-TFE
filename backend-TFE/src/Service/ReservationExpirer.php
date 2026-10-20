@@ -73,8 +73,7 @@ final class ReservationExpirer
         }
         if ($donor) {
             $this->notify($donor, $a, sprintf(
-                '%s n\'a pas récupéré "%s" dans le délai de %d h : votre annonce est de nouveau disponible.',
-                $beneficiary ? $beneficiary->getName() . ' ' . $beneficiary->getSurname() : 'Le bénéficiaire',
+                'L\'objet "%s" n\'a pas été récupéré dans le délai de %d h : votre annonce est de nouveau disponible.',
                 $title,
                 self::HOURS
             ));

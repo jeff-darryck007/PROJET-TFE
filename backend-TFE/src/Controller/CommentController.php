@@ -89,7 +89,7 @@ final class CommentController extends AbstractController
         if (!$isOwner && $owner && $owner->getId() !== $user->getId()) {
             // Demandeur → notifier le donneur
             $notif = new Notification();
-            $notif->setText(sprintf('Nouveau message de %s sur "%s".', $senderName, $anouncement->getTitle()));
+            $notif->setText(sprintf('Nouveau message sur "%s".', mb_strimwidth((string) $anouncement->getTitle(), 0, 80, '…')));
             $notif->setType('message');
             $notif->setIsRead(false);
             $notif->setCreateAt(new \DateTime());
@@ -99,7 +99,7 @@ final class CommentController extends AbstractController
         } elseif ($isOwner && $threadUser) {
             // Donneur répond → notifier le demandeur
             $notif = new Notification();
-            $notif->setText(sprintf('Réponse de %s sur "%s".', $senderName, $anouncement->getTitle()));
+            $notif->setText(sprintf('Nouvelle réponse sur "%s".', mb_strimwidth((string) $anouncement->getTitle(), 0, 80, '…')));
             $notif->setType('message');
             $notif->setIsRead(false);
             $notif->setCreateAt(new \DateTime());

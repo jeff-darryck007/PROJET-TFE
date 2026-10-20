@@ -49,28 +49,38 @@
       <a v-if="isVisiteur" href="#" class="donor-link" @click.prevent="closeMenu(); openDonorModal()">
         <i class="fas fa-hand-holding-heart"></i><span>Devenir donateur</span>
       </a>
-      <router-link to="/MessageView" @click="closeMenu">
-        <i class="fas fa-envelope"></i><span>Messages</span>
-      </router-link>
-      <router-link to="/FavorisView" @click="closeMenu">
-        <i class="fas fa-heart"></i><span>Favoris</span>
-      </router-link>
-      <router-link to="/NotificationView" @click="closeMenu" class="mobile-notif">
-        <i class="fas fa-bell"></i>
-        <span>Notifications</span>
-        <span v-if="unreadCount > 0" class="notif-badge-mobile">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-      </router-link>
-      <router-link to="/ProfileView" @click="closeMenu">
-        <i class="fas fa-user-circle"></i><span>Profil</span>
-      </router-link>
-      <router-link v-if="canContact" to="/ContactView" @click="closeMenu">
-        <i class="fas fa-envelope-open-text"></i><span>Contact</span>
-      </router-link>
-      <a href="#" @click.prevent="toggleDark; closeMenu()">
+      <template v-if="isLoggedIn">
+        <router-link to="/MessageView" @click="closeMenu">
+          <i class="fas fa-envelope"></i><span>Messages</span>
+        </router-link>
+        <router-link to="/FavorisView" @click="closeMenu">
+          <i class="fas fa-heart"></i><span>Favoris</span>
+        </router-link>
+        <router-link to="/NotificationView" @click="closeMenu" class="mobile-notif">
+          <i class="fas fa-bell"></i>
+          <span>Notifications</span>
+          <span v-if="unreadCount > 0" class="notif-badge-mobile">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </router-link>
+        <router-link to="/ProfileView" @click="closeMenu">
+          <i class="fas fa-user-circle"></i><span>Profil</span>
+        </router-link>
+        <router-link v-if="canContact" to="/ContactView" @click="closeMenu">
+          <i class="fas fa-envelope-open-text"></i><span>Contact</span>
+        </router-link>
+      </template>
+      <template v-else>
+        <router-link to="/login" @click="closeMenu">
+          <i class="fas fa-sign-in-alt"></i><span>Connexion</span>
+        </router-link>
+        <router-link to="/register" @click="closeMenu">
+          <i class="fas fa-user-plus"></i><span>S'inscrire</span>
+        </router-link>
+      </template>
+      <a href="#" @click.prevent="toggleDark(); closeMenu()">
         <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
         <span>{{ darkMode ? 'Mode clair' : 'Mode sombre' }}</span>
       </a>
-      <a href="#" class="logout-link" @click.prevent="handleLogout">
+      <a v-if="isLoggedIn" href="#" class="logout-link" @click.prevent="handleLogout">
         <i class="fas fa-sign-out-alt"></i><span>Déconnexion</span>
       </a>
     </div>
@@ -113,6 +123,8 @@ const menuOpen  = ref(false)
 const isSticky  = ref(false)
 const darkMode  = ref(false)
 const unreadCount = ref(0)
+// Session ouverte ? (la navbar est recréée à chaque page, la lecture au montage suffit)
+const isLoggedIn  = ref(!!localStorage.getItem('token'))
 
 // ref (et non computed) : le menu doit se mettre à jour dès que le rôle change
 const readRoles = () => {
@@ -181,6 +193,7 @@ function handleLogout() {
   localStorage.removeItem('idUser')
   localStorage.removeItem('roles')
   userRoles.value = []
+  isLoggedIn.value = false
   unreadCount.value = 0
   closeMenu()
   router.push('/login')
